@@ -1,0 +1,10 @@
+.DS_Store
+.DS_Store?
+**/.DS_Store
+zig-out
+*.a
+*.o
+*.dylib
+*.so
+.zig-cache
+benchmarks

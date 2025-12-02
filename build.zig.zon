@@ -1,0 +1,17 @@
+.{
+    .name = .facet,
+
+    .version = "0.0.1",
+
+    .fingerprint = 0x56b9ba28ed4e3f04,
+
+    .minimum_zig_version = "0.15.2",
+
+    .dependencies = .{},
+
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
