@@ -76,6 +76,16 @@ inline fn sign(comptime T: type, v: T) T {
     return if (v < 0) -1 else 1;
 }
 
+inline fn abs(comptime T: type, v: T) T {
+    return if (v < 0) -v else v;
+}
+
+inline fn swap(comptime T: type, item_a: *T, item_b: *T) void {
+    const tmp = item_a.*;
+    item_a.* = item_b.*;
+    item_b.* = tmp;
+}
+
 fn normalize_rect(x: i32, y: i32, w: i32, h: i32, c_w: usize, c_h: usize, rect: *Rect) bool {
     if (w == 0 or h == 0) return false;
 
@@ -110,6 +120,72 @@ pub fn drawRect(c: *Canvas, x: i32, y: i32, w: u32, h: u32, color: Color) void {
     for (@intCast(rect.v[0])..@intCast(rect.v[2] + 1)) |xr| {
         for (@intCast(rect.v[1])..@intCast(rect.v[3] + 1)) |yr| {
             colors.blendColor(getPixelPtr(c, xr, yr), color);
+        }
+    }
+}
+
+pub fn normalize_triangle(width: usize, height: usize, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, lx: *i32, hx: *i32, ly: *i32, hy: *i32) bool {
+    lx.* = x1;
+    hx.* = x1;
+
+    if (lx.* > x2) lx.* = x2;
+    if (lx.* > x3) lx.* = x3;
+    if (hx.* < x2) hx.* = x2;
+    if (hx.* < x3) hx.* = x3;
+
+    if (lx.* < 0) lx.* = 0;
+    if (@as(usize, @intCast(lx.*)) >= width) return false;
+    if (hx.* < 0) return false;
+    if (@as(usize, @intCast(hx.*)) >= width) hx.* = @as(i32, @intCast(width - 1));
+
+    ly.* = y1;
+    hy.* = y1;
+
+    if (ly.* > y2) ly.* = y2;
+    if (ly.* > y3) ly.* = y3;
+    if (hy.* < y2) hy.* = y2;
+    if (hy.* < y3) hy.* = y3;
+
+    if (ly.* < 0) ly.* = 0;
+    if (@as(usize, @intCast(ly.*)) >= height) return false;
+    if (hy.* < 0) return false;
+    if (@as(usize, @intCast(hy.*)) >= height) hy.* = @as(i32, @intCast(height - 1));
+
+    return true;
+}
+
+fn isPointInTriangle(x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, xp: i32, yp: i32, u_1: *i32, u_2: *i32, det: *i32) bool {
+    det.* = (x1 - x3) * (y2 - y3) - (x2 - x3) * (y1 - y3);
+
+    u_1.* = (y2 - y3) * (xp - x3) + (x3 - x2) * (yp - y3);
+    u_2.* = (y3 - y1) * (xp - x3) + (x1 - x3) * (yp - y3);
+
+    const u_3: i32 = det.* - u_1.* - u_2.*;
+
+    return ((sign(i32, u_1.*) == sign(i32, det.*) or u_1.* == 0) and
+        (sign(i32, u_2.*) == sign(i32, det.*) or u_2.* == 0) and
+        (sign(i32, u_3) == sign(i32, det.*) or u_3 == 0));
+}
+
+pub fn drawTriangle(c: *Canvas, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, color: Color) void {
+    var lx: i32 = undefined;
+    var hx: i32 = undefined;
+    var ly: i32 = undefined;
+    var hy: i32 = undefined;
+
+    if (normalize_triangle(c.width, c.height, x1, y1, x2, y2, x3, y3, &lx, &hx, &ly, &hy)) {
+        var y: i32 = ly;
+        while (y <= hy) : (y += 1) {
+            var x: i32 = lx;
+            while (x <= hx) : (x += 1) {
+                var u_1: i32 = undefined;
+                var u_2: i32 = undefined;
+                var det: i32 = undefined;
+
+                if (isPointInTriangle(x1, y1, x2, y2, x3, y3, x, y, &u_1, &u_2, &det)) {
+                    colors.blendColor(getPixelPtr(c, @intCast(x), @intCast(y)), color);
+                }
+            }
         }
     }
 }

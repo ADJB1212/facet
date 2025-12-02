@@ -23,7 +23,8 @@ pub fn main() !void {
     while (!quit) {
         quit = window.pollEvents();
 
-        render.drawRect(canvas, 20, 20, 200, 180, render.colors.WHITE);
+        render.drawRect(canvas, 20, 20, 200, 180, render.colors.CYAN);
+        render.drawTriangle(canvas, 220, 200, 8, 500, 400, 300, render.colors.RED);
         window.present();
     }
 }

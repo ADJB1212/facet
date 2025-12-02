@@ -2,13 +2,13 @@ const std = @import("std");
 
 pub const Color = u32;
 
-pub const RED = 0xFF0000FF;
+pub const RED = 0xFFFF0000;
 pub const GREEN = 0xFF00FF00;
-pub const BLUE = 0xFFFF0000;
-pub const BLACK = BLUE & RED & GREEN;
+pub const BLUE = 0xFF0000FF;
+pub const BLACK = 0xFF000000;
 pub const WHITE = BLUE | GREEN | RED;
-pub const YELLOW = BLUE | GREEN;
-pub const CYAN = GREEN | RED;
+pub const YELLOW = RED | GREEN;
+pub const CYAN = GREEN | BLUE;
 pub const MAGENTA = RED | BLUE;
 
 inline fn red(c: Color) u8 {
