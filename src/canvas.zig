@@ -1,5 +1,6 @@
 const std = @import("std");
 pub const colors = @import("color.zig");
+const math = @import("math.zig");
 
 var canvas: Canvas = undefined;
 const Color = colors.Color;
@@ -57,6 +58,10 @@ export fn zig_get_canvas_stride() usize {
 
 fn getPixelPtr(c: *Canvas, x: usize, y: usize) *u32 {
     return &c.pixels[y * c.stride + x];
+}
+
+fn inRenderArea(c: *Canvas, x: i32, y: i32) bool {
+    return 0 <= x and x < c.width and 0 <= y and y < c.height;
 }
 
 pub fn fillCanvas(c: *Canvas, color: Color) void {
@@ -218,5 +223,110 @@ pub fn drawCircle(c: *Canvas, x: i32, y: i32, r: i32, aa: i32, color: Color) voi
             const t: Color = @intCast((color & 0x00FFFFFF) | (a << (24)));
             colors.blendColor(getPixelPtr(c, xr, yr), t);
         }
+    }
+}
+
+pub fn drawLine(c: *Canvas, x1: i32, y1: i32, x2: i32, y2: i32, thickness: u32, color: Color) void {
+    var x1_mut = x1;
+    var x2_mut = x2;
+    var y1_mut = y1;
+    var y2_mut = y2;
+    const dx = x2_mut - x1_mut;
+    const dy = y2_mut - y1_mut;
+    const t_offset = @as(i32, @intCast(thickness >> 1));
+
+    if (dx == 0 and dy == 0) {
+        if (thickness <= 1) {
+            if (inRenderArea(c, x1_mut, y1_mut)) {
+                colors.blendColor(getPixelPtr(c, @intCast(x1_mut), @intCast(y1_mut)), color);
+            }
+        } else drawRect(c, x1_mut - t_offset, y1_mut - t_offset, thickness, thickness, color);
+        return;
+    }
+    if (abs(i32, dx) > abs(i32, dy)) {
+        if (x1_mut > x2_mut) {
+            swap(i32, &x1_mut, &x2_mut);
+            swap(i32, &y1_mut, &y2_mut);
+        }
+
+        const x_start = @max(0, x1_mut);
+        const x_end = @min(@as(i32, @intCast(c.width)) - 1, x2_mut);
+
+        if (x_start <= x_end) {
+            for (@intCast(x_start)..@intCast(x_end + 1)) |x| {
+                const x_i: i32 = @intCast(x);
+                const y: i32 = y1_mut + @as(i32, @intCast(@divTrunc(@as(i64, dy) * (x_i - x1_mut), dx)));
+                if (thickness <= 1) {
+                    if (inRenderArea(c, x_i, y)) {
+                        colors.blendColor(getPixelPtr(c, x, @intCast(y)), color);
+                    }
+                } else {
+                    var sy = y - t_offset;
+                    const ey = sy + @as(i32, @intCast(thickness));
+                    while (sy < ey) : (sy += 1) {
+                        if (inRenderArea(c, x_i, sy)) {
+                            colors.blendColor(getPixelPtr(c, x, @intCast(sy)), color);
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        if (y1_mut > y2_mut) {
+            swap(i32, &x1_mut, &x2_mut);
+            swap(i32, &y1_mut, &y2_mut);
+        }
+
+        const y_start = @max(0, y1_mut);
+        const y_end = @min(@as(i32, @intCast(c.height)) - 1, y2_mut);
+
+        if (y_start <= y_end) {
+            for (@intCast(y_start)..@intCast(y_end + 1)) |y| {
+                const y_i: i32 = @intCast(y);
+                const x: i32 = x1_mut + @as(i32, @intCast(@divTrunc(@as(i64, dx) * (y_i - y1_mut), dy)));
+                if (thickness <= 1) {
+                    if (inRenderArea(c, x, y_i)) {
+                        colors.blendColor(getPixelPtr(c, @intCast(x), y), color);
+                    }
+                } else {
+                    var sx = x - t_offset;
+                    const ex = sx + @as(i32, @intCast(thickness));
+                    while (sx < ex) : (sx += 1) {
+                        if (inRenderArea(c, sx, y_i)) {
+                            colors.blendColor(getPixelPtr(c, @intCast(sx), y), color);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn drawVerticalLine(c: *Canvas, x: i32, y0: i32, y1: i32, thickness: u32, color: Color) void {
+    drawLine(c, x, y0, x, y1, thickness, color);
+}
+
+pub fn drawHorizontalLine(c: *Canvas, y: i32, x0: i32, x1: i32, thickness: u32, color: Color) void {
+    drawLine(c, x0, y, x1, y, thickness, color);
+}
+
+fn bezierInterpolation(v1: @Vector(2, i32), v2: @Vector(2, i32), v3: @Vector(2, i32), t: f32) @Vector(2, i32) {
+    const intermediate_1: @Vector(2, i32) = math.vectorLerp(v1, v2, t);
+    const intermediate_2: @Vector(2, i32) = math.vectorLerp(v2, v3, t);
+    return math.vectorLerp(intermediate_1, intermediate_2, t);
+}
+
+pub fn drawBezier(c: *Canvas, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, thickness: u32, color: Color) void {
+    const v1: @Vector(2, i32) = .{ x1, y1 };
+    const v2: @Vector(2, i32) = .{ x2, y2 };
+    const v3: @Vector(2, i32) = .{ x3, y3 };
+    const res: u8 = 20;
+    var prev_point: @Vector(2, i32) = v1;
+
+    for (0..res) |i| {
+        const t: f32 = (@as(f32, @floatFromInt(i)) + 1.0) / res;
+        const next_point: @Vector(2, i32) = bezierInterpolation(v1, v2, v3, t);
+        drawLine(c, prev_point[0], prev_point[1], next_point[0], next_point[1], thickness, color);
+        prev_point = next_point;
     }
 }
