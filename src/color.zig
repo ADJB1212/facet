@@ -11,16 +11,16 @@ pub const YELLOW = RED | GREEN;
 pub const CYAN = GREEN | BLUE;
 pub const MAGENTA = RED | BLUE;
 
-inline fn red(c: Color) u8 {
+pub inline fn red(c: Color) u8 {
     return @intCast(c & 0xFF);
 }
-inline fn green(c: Color) u8 {
+pub inline fn green(c: Color) u8 {
     return @intCast((c >> 8) & 0xFF);
 }
-inline fn blue(c: Color) u8 {
+pub inline fn blue(c: Color) u8 {
     return @intCast((c >> 16) & 0xFF);
 }
-inline fn alpha(c: Color) u8 {
+pub inline fn alpha(c: Color) u8 {
     return @intCast((c >> 24) & 0xFF);
 }
 
@@ -50,6 +50,13 @@ pub fn blendColor(dst: *u32, src: u32) void {
     const bb = blend8(blue(d), blue(src), sa);
 
     dst.* = rgba(rr, gg, bb, alpha(d));
+}
+
+pub fn darken(color: Color, factor: f32) u32 {
+    const r = @as(u32, @intFromFloat(@as(f32, @floatFromInt(red(color))) * factor));
+    const g = @as(u32, @intFromFloat(@as(f32, @floatFromInt(green(color))) * factor));
+    const b = @as(u32, @intFromFloat(@as(f32, @floatFromInt(blue(color))) * factor));
+    return BLACK | (b << 16) | (g << 8) | r;
 }
 
 inline fn lerp8(a: u8, b: u8, t: u8) u8 {

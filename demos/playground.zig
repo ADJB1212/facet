@@ -25,6 +25,7 @@ pub fn main() !void {
 
         render.drawRect(canvas, 20, 20, 200, 180, render.colors.CYAN);
         render.drawTriangle(canvas, 220, 200, 8, 500, 400, 300, render.colors.RED);
+        render.drawCircle(canvas, 750, 150, 50, 2, render.colors.MAGENTA);
         window.present();
     }
 }

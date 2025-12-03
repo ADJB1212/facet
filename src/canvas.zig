@@ -189,3 +189,34 @@ pub fn drawTriangle(c: *Canvas, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3:
         }
     }
 }
+
+// aa parameter is for anti-aliasing
+pub fn drawCircle(c: *Canvas, x: i32, y: i32, r: i32, aa: i32, color: Color) void {
+    var rect: Rect = undefined;
+    const r_s = r + sign(@TypeOf(r), r);
+    if (!normalize_rect(x - r_s, y - r_s, 2 * r_s, 2 * r_s, c.width, c.height, &rect)) return;
+
+    const res: i32 = aa + 1;
+    const aa_i: usize = @intCast(aa);
+
+    for (@intCast(rect.v[0])..@intCast(rect.v[2] + 1)) |xr| {
+        for (@intCast(rect.v[1])..@intCast(rect.v[3] + 1)) |yr| {
+            var count: usize = 0;
+            const xr_i: i32 = @intCast(xr);
+            const yr_i: i32 = @intCast(yr);
+            for (@intCast(0)..@intCast(aa)) |xr2| {
+                for (@intCast(0)..@intCast(aa)) |yr2| {
+                    const xr2_i: i32 = @intCast(xr2);
+                    const yr2_i: i32 = @intCast(yr2);
+                    const dx = xr_i * res * 2 + 2 + xr2_i * 2 - res * x * 2 - res;
+                    const dy = yr_i * res * 2 + 2 + yr2_i * 2 - res * y * 2 - res;
+                    if (dx * dx + dy * dy <= res * res * r * r * 4) count += 1;
+                }
+            }
+
+            const a = colors.alpha(color) * count / aa_i / aa_i;
+            const t: Color = @intCast((color & 0x00FFFFFF) | (a << (24)));
+            colors.blendColor(getPixelPtr(c, xr, yr), t);
+        }
+    }
+}
