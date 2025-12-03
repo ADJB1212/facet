@@ -19,13 +19,22 @@ pub fn main() !void {
     window.init();
 
     var quit: bool = false;
-
+    var circle_x: i32 = 750;
     while (!quit) {
         quit = window.pollEvents();
+        render.fillCanvas(canvas, render.colors.BLACK);
 
-        render.drawRect(canvas, 20, 20, 200, 180, render.colors.CYAN);
-        render.drawTriangle(canvas, 220, 200, 8, 500, 400, 300, render.colors.RED);
-        render.drawCircle(canvas, 750, 150, 50, 2, render.colors.MAGENTA);
+        if (window.isKeyDown(.Right)) {
+            circle_x += 1;
+        }
+        if (window.isKeyDown(.Left)) {
+            circle_x -= 1;
+        }
+
+        render.drawRect(canvas, 20, 20, 100, 180, render.colors.CYAN);
+        render.drawTriangle(canvas, 220, 100, 8, 300, 200, 20, render.colors.RED);
+        render.drawCircle(canvas, circle_x, 150, 50, 2, render.colors.MAGENTA);
+        render.drawBezier(canvas, 130, 140, 300, 280, 134, 500, 3, render.colors.WHITE);
         window.present();
     }
 }

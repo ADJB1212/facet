@@ -12,6 +12,9 @@ extern NSInteger zig_get_canvas_height(void);
 extern NSInteger zig_get_canvas_stride(void);
 
 static bool keys[512] = {0};
+static bool mouse_buttons[3] = {0};
+static float last_click_x = 0.0f;
+static float last_click_y = 0.0f;
 
 #pragma mark - SoftwareView
 
@@ -35,6 +38,43 @@ static bool keys[512] = {0};
 - (void)keyUp:(NSEvent *)event {
   if (event.keyCode < 512) {
     keys[event.keyCode] = false;
+  }
+}
+
+- (void)mouseDown:(NSEvent *)event {
+  NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];
+  last_click_x = (float)point.x;
+  last_click_y = (float)(self.bounds.size.height - point.y);
+  mouse_buttons[0] = true;
+}
+
+- (void)mouseUp:(NSEvent *)event {
+  mouse_buttons[0] = false;
+}
+
+- (void)rightMouseDown:(NSEvent *)event {
+  NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];
+  last_click_x = (float)point.x;
+  last_click_y = (float)(self.bounds.size.height - point.y);
+  mouse_buttons[1] = true;
+}
+
+- (void)rightMouseUp:(NSEvent *)event {
+  mouse_buttons[1] = false;
+}
+
+- (void)otherMouseDown:(NSEvent *)event {
+  NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];
+  last_click_x = (float)point.x;
+  last_click_y = (float)(self.bounds.size.height - point.y);
+  if (event.buttonNumber == 2) {
+    mouse_buttons[2] = true;
+  }
+}
+
+- (void)otherMouseUp:(NSEvent *)event {
+  if (event.buttonNumber == 2) {
+    mouse_buttons[2] = false;
   }
 }
 
@@ -188,6 +228,21 @@ bool macos_is_key_down(uint16_t key_code) {
   if (key_code < 512) {
     return keys[key_code];
   }
-
   return false;
+}
+
+bool macos_is_mouse_down(uint8_t button) {
+  if (button < 3) {
+    return mouse_buttons[button];
+  }
+  return false;
+}
+
+void macos_get_last_click_position(float *x, float *y) {
+  if (x) {
+    *x = last_click_x;
+  }
+  if (y) {
+    *y = last_click_y;
+  }
 }
