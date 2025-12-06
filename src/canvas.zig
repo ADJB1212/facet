@@ -1,6 +1,7 @@
 const std = @import("std");
 pub const colors = @import("color.zig");
 const math = @import("math.zig");
+pub const FpsManager = @import("fps.zig").FpsManager;
 
 var canvas: Canvas = undefined;
 const Color = colors.Color;
