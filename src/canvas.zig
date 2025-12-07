@@ -1,6 +1,7 @@
 const std = @import("std");
 pub const colors = @import("color.zig");
 const math = @import("math.zig");
+const font8 = @import("default_font.zig").font8x8;
 
 var canvas: Canvas = undefined;
 const Color = colors.Color;
@@ -328,5 +329,60 @@ pub fn drawBezier(c: *Canvas, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i
         const next_point: @Vector(2, i32) = bezierInterpolation(v1, v2, v3, t);
         drawLine(c, prev_point[0], prev_point[1], next_point[0], next_point[1], thickness, color);
         prev_point = next_point;
+    }
+}
+
+pub const TextAlign = enum {
+    left,
+    center,
+    right,
+};
+
+pub fn drawChar(c: *Canvas, ch: u8, x: i32, y: i32, size: i32, color: Color) void {
+    if (ch < 32 or ch > 126 or size <= 0) return;
+
+    const glyph = font8[ch - 32];
+
+    for (0..8) |py| {
+        const row = glyph[7 - py];
+
+        for (0..8) |px| {
+            if (((row >> @as(u3, @intCast(px))) & 1) == 0) continue;
+
+            const base_x = x + @as(i32, @intCast(px)) * size;
+            const base_y = y + @as(i32, @intCast(py)) * size;
+
+            for (0..@intCast(size)) |sy| {
+                for (0..@intCast(size)) |sx| {
+                    const dx = base_x + @as(i32, @intCast(sx));
+                    const dy = base_y + @as(i32, @intCast(sy));
+
+                    if (!inRenderArea(c, dx, dy)) continue;
+
+                    colors.blendColor(getPixelPtr(c, @intCast(dx), @intCast(dy)), color);
+                }
+            }
+        }
+    }
+}
+
+pub fn measureTextWidth(text: []const u8, size: i32) i32 {
+    if (size <= 0) return 0;
+    const len: i32 = @intCast(text.len);
+    return len * 8 * size;
+}
+
+pub fn drawText(c: *Canvas, text: []const u8, x: i32, y: i32, size: i32, color: Color, text_align: TextAlign) void {
+    if (size <= 0) return;
+    const width = measureTextWidth(text, size);
+    var cx = switch (text_align) {
+        .left => x,
+        .center => x - @divTrunc(width, 2),
+        .right => x - width,
+    };
+
+    for (text) |ch| {
+        drawChar(c, ch, cx, y, size, color);
+        cx += 8 * size;
     }
 }
