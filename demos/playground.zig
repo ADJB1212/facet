@@ -35,6 +35,7 @@ pub fn main() !void {
         render.drawTriangle(canvas, 220, 100, 8, 300, 200, 20, render.colors.RED);
         render.drawCircle(canvas, circle_x, 150, 50, 2, render.colors.MAGENTA);
         render.drawBezier(canvas, 130, 140, 300, 280, 134, 500, 3, render.colors.WHITE);
+        render.drawText(canvas, "Andrew 123456789 (Facet)!", width / 2, height - 100, 4, render.colors.WHITE, .center);
         window.present();
     }
 }
