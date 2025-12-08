@@ -16,6 +16,9 @@ pub fn main() !void {
     const canvas = render.getCanvas();
     render.fillCanvas(canvas, render.colors.BLACK);
 
+    var fps: render.FpsManager = .{};
+    fps.setTargetFPS(120);
+
     window.init();
 
     var quit: bool = false;
@@ -37,5 +40,7 @@ pub fn main() !void {
         render.drawBezier(canvas, 130, 140, 300, 280, 134, 500, 3, render.colors.WHITE);
         render.drawText(canvas, "Andrew 123456789 (Facet)!", width / 2, height - 100, 4, render.colors.WHITE, .center);
         window.present();
+        fps.drawFPS(canvas, width - 80, 10, render.colors.WHITE);
+        fps.waitForNextFrame();
     }
 }
