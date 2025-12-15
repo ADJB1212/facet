@@ -74,6 +74,10 @@ pub fn fillCanvas(c: *Canvas, color: Color) void {
     }
 }
 
+pub fn setPixel(c: *Canvas, x: i32, y: i32, color: Color) void {
+    colors.blendColor(getPixelPtr(c, @as(usize, @intCast(x)), @as(usize, @intCast(y))), color);
+}
+
 pub const Rect = struct {
     o: @Vector(4, i32),
     v: @Vector(4, i32),
