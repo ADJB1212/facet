@@ -23,34 +23,34 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const play = b.addExecutable(.{
-        .name = "playground",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("demos/playground.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
+    const demos = [_]struct { name: []const u8, root: []const u8, description: []const u8 }{
+        .{ .name = "play", .root = "demos/playground.zig", .description = "Run the playground (used for testing new features)" },
+        .{ .name = "fp", .root = "demos/first_person.zig", .description = "Run the 3D First Person demo" },
+    };
 
-    play.root_module.addImport("renderer", canvas_lib);
-    play.root_module.addImport("window", window_lib);
+    for (demos) |demo| {
+        const exe = b.addExecutable(.{
+            .name = demo.name,
+            .root_module = b.createModule(.{
+                .root_source_file = b.path(demo.root),
+                .target = target,
+                .optimize = optimize,
+            }),
+        });
 
-    play.addObjectFile(.{ .cwd_relative = "zig-out/App.o" });
-    play.linkFramework("AppKit");
-    play.linkFramework("CoreGraphics");
+        exe.root_module.addImport("renderer", canvas_lib);
+        exe.root_module.addImport("window", window_lib);
 
-    play.step.dependOn(&mac_module.step);
+        exe.addObjectFile(.{ .cwd_relative = "zig-out/App.o" });
+        exe.linkFramework("AppKit");
+        exe.linkFramework("CoreGraphics");
+        exe.step.dependOn(&mac_module.step);
 
-    b.installArtifact(play);
+        b.installArtifact(exe);
 
-    const run_playground = b.step("play", "Run the playground (used for testing new features)");
-
-    const run_play_cmd = b.addRunArtifact(play);
-    run_playground.dependOn(&run_play_cmd.step);
-
-    run_play_cmd.step.dependOn(b.getInstallStep());
-
-    if (b.args) |args| {
-        run_play_cmd.addArgs(args);
+        const run_step = b.step(demo.name, demo.description);
+        const run_cmd = b.addRunArtifact(exe);
+        run_cmd.step.dependOn(b.getInstallStep());
+        run_step.dependOn(&run_cmd.step);
     }
 }
