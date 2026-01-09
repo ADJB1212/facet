@@ -26,6 +26,7 @@ pub fn build(b: *std.Build) void {
     const demos = [_]struct { name: []const u8, root: []const u8, description: []const u8 }{
         .{ .name = "play", .root = "demos/playground.zig", .description = "Run the playground (used for testing new features)" },
         .{ .name = "fp", .root = "demos/first_person.zig", .description = "Run the 3D First Person demo" },
+        .{ .name = "asteroids", .root = "demos/asteroids.zig", .description = "Run the Asteroids game demo" },
     };
 
     for (demos) |demo| {
