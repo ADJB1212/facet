@@ -42,10 +42,17 @@ pub fn build(b: *std.Build) void {
         exe.root_module.addImport("renderer", canvas_lib);
         exe.root_module.addImport("window", window_lib);
 
-        exe.addObjectFile(.{ .cwd_relative = "zig-out/App.o" });
-        exe.linkFramework("AppKit");
-        exe.linkFramework("CoreGraphics");
-        exe.step.dependOn(&mac_module.step);
+        if (target.result.os.tag == .macos) {
+            exe.addObjectFile(.{ .cwd_relative = "zig-out/App.o" });
+            exe.linkFramework("AppKit");
+            exe.linkFramework("CoreGraphics");
+            exe.step.dependOn(&mac_module.step);
+        } else if (target.result.os.tag == .linux) {
+            exe.addCSourceFile(.{ .file = b.path("src/platform/Linux/X11.c"), .flags = &.{} });
+            exe.addCSourceFile(.{ .file = b.path("src/platform/Linux/Wayland.c"), .flags = &.{} });
+            exe.linkSystemLibrary("X11");
+            exe.linkLibC();
+        }
 
         b.installArtifact(exe);
 

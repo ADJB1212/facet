@@ -120,3 +120,68 @@ pub fn macos_keycode(key: Key) u16 {
         .Z => 6,
     };
 }
+
+// source: https://github.com/torvalds/linux/blob/master/include/uapi/linux/input-event-codes.h
+pub fn linux_keycode(key: Key) u16 {
+    return switch (key) {
+        .Left => 105 + 8,
+        .Right => 106 + 8,
+        .Down => 108 + 8,
+        .Up => 103 + 8,
+
+        .Shift => 42 + 8,
+        .Control => 29 + 8,
+        .Alt => 56 + 8,
+        .Super => 125 + 8,
+        .CapsLock => 58 + 8,
+
+        .Escape => 1 + 8,
+        .Tab => 15 + 8,
+        .Space => 57 + 8,
+        .Enter => 28 + 8,
+        .Backspace => 14 + 8,
+        .Delete => 111 + 8,
+        .Home => 102 + 8,
+        .End => 107 + 8,
+        .PageUp => 104 + 8,
+        .PageDown => 109 + 8,
+
+        .Num0 => 11 + 8,
+        .Num1 => 2 + 8,
+        .Num2 => 3 + 8,
+        .Num3 => 4 + 8,
+        .Num4 => 5 + 8,
+        .Num5 => 6 + 8,
+        .Num6 => 7 + 8,
+        .Num7 => 8 + 8,
+        .Num8 => 9 + 8,
+        .Num9 => 10 + 8,
+
+        .A => 30 + 8,
+        .B => 48 + 8,
+        .C => 46 + 8,
+        .D => 32 + 8,
+        .E => 18 + 8,
+        .F => 33 + 8,
+        .G => 34 + 8,
+        .H => 35 + 8,
+        .I => 23 + 8,
+        .J => 36 + 8,
+        .K => 37 + 8,
+        .L => 38 + 8,
+        .M => 50 + 8,
+        .N => 49 + 8,
+        .O => 24 + 8,
+        .P => 25 + 8,
+        .Q => 16 + 8,
+        .R => 19 + 8,
+        .S => 31 + 8,
+        .T => 20 + 8,
+        .U => 22 + 8,
+        .V => 47 + 8,
+        .W => 17 + 8,
+        .X => 45 + 8,
+        .Y => 21 + 8,
+        .Z => 44 + 8,
+    };
+}
