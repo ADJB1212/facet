@@ -1,0 +1,12 @@
+CompileFlags:
+  Add: [-xc, -ferror-limit=0]
+
+Diagnostics:
+  Suppress:
+    - unknown_typename
+    - pp_file_not_found
+    - undeclared_var_use
+    - invalid_token_after_toplevel_declarator
+    - implicit-function-declaration
+    - undeclared_var_use_suggest
+    - fatal_too_many_errors

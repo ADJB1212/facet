@@ -1,11 +1,11 @@
 # Facet
 
-Facet is a Zig-based software rendering graphics library and game engine currently in early development. It provides a simple API for pixel manipulation, window management, and input handling across macOS and Linux.
+Facet is a Zig-based software rendering graphics library and game engine currently in early development. It provides a simple API for pixel manipulation, window management, and input handling across macOS, Windows, and Linux.
 
 ## Features
 
 - **Software Renderer**: Direct pixel buffer manipulation for 2D and 3D graphics.
-- **Window Management**: Custom windowing system for macOS (AppKit/CoreGraphics) and Linux (X11/Wayland).
+- **Window Management**: Custom windowing system for macOS (AppKit/CoreGraphics), Windows, Linux (X11/Wayland).
 - **No Heavy Dependencies**: Lightweight and built with minimal external dependencies.
 - **Demos**: Includes several example projects to demonstrate capabilities:
   - **Asteroids**: A clone of the Asteroids arcade game.
@@ -19,6 +19,7 @@ Facet is a Zig-based software rendering graphics library and game engine current
 ### Platform-Specific
 
 - **macOS**: No additional requirements (uses system frameworks).
+- **Windows**: No additional requirements (uses system frameworks).
 - **Linux**: Requires X11 development libraries (e.g., `libx11-dev`).
 
 ## Getting Started
@@ -50,7 +51,7 @@ zig build play
 - `src/`: Core library source code.
   - `canvas.zig`: Software renderer implementation.
   - `window.zig`: Window management and input.
-  - `platform/`: Platform-specific backend code (MacOS/Linux).
+  - `platform/`: Platform-specific backend code.
 - `demos/`: Example applications using the library.
 
 ## License

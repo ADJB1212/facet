@@ -8,7 +8,7 @@ pub fn build(b: *std.Build) void {
         "clang",
         "-O2",
         "-c",
-        "src/platform/MacOS/App.m",
+        "src/platform/macOS/App.m",
         "-o",
         "zig-out/App.o",
     });
@@ -51,6 +51,11 @@ pub fn build(b: *std.Build) void {
             exe.addCSourceFile(.{ .file = b.path("src/platform/Linux/X11.c"), .flags = &.{} });
             exe.addCSourceFile(.{ .file = b.path("src/platform/Linux/Wayland.c"), .flags = &.{} });
             exe.linkSystemLibrary("X11");
+            exe.linkLibC();
+        } else if (target.result.os.tag == .windows) {
+            exe.addCSourceFile(.{ .file = b.path("src/platform/Windows/App.c"), .flags = &.{} });
+            exe.linkSystemLibrary("user32");
+            exe.linkSystemLibrary("gdi32");
             exe.linkLibC();
         }
 

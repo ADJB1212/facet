@@ -34,6 +34,13 @@ extern fn linux_wayland_is_key_down(key_code: u16) bool;
 extern fn linux_wayland_is_mouse_down(button: u8) bool;
 extern fn linux_wayland_get_last_click_position(x: *f32, y: *f32) void;
 
+extern fn windows_init_app() void;
+extern fn windows_poll_events() bool;
+extern fn windows_present_frame() void;
+extern fn windows_is_key_down(key_code: u16) bool;
+extern fn windows_is_mouse_down(button: u8) bool;
+extern fn windows_get_last_click_position(x: *f32, y: *f32) void;
+
 fn detect_linux_display() enum { X11, Wayland, Unknown } {
     const env = std.process.getEnvMap(std.heap.page_allocator) catch return .Unknown;
     defer env.deinit();
@@ -60,6 +67,7 @@ pub fn init() void {
             .Wayland => linux_wayland_init_app(),
             else => unsupported_platform(),
         },
+        .windows => windows_init_app(),
         else => unsupported_platform(),
     }
 }
@@ -72,6 +80,7 @@ pub fn pollEvents() bool {
             .Wayland => linux_wayland_poll_events(),
             else => unsupported_platform(),
         },
+        .windows => windows_poll_events(),
         else => unsupported_platform(),
     };
 }
@@ -84,6 +93,7 @@ pub fn isKeyDown(key: Key) bool {
             .Wayland => linux_wayland_is_key_down(keys.linux_keycode(key)),
             else => unsupported_platform(),
         },
+        .windows => windows_is_key_down(keys.windows_keycode(key)),
         else => unsupported_platform(),
     };
 }
@@ -96,6 +106,7 @@ pub fn isMouseDown(button: MouseButton) bool {
             .Wayland => linux_wayland_is_mouse_down(@intFromEnum(button)),
             else => unsupported_platform(),
         },
+        .windows => windows_is_mouse_down(@intFromEnum(button)),
         else => unsupported_platform(),
     };
 }
@@ -120,6 +131,11 @@ pub fn getLastClickPosition() MousePosition {
             },
             else => unsupported_platform(),
         },
+        .windows => blk: {
+            var pos: MousePosition = .{ .x = 0, .y = 0 };
+            windows_get_last_click_position(&pos.x, &pos.y);
+            break :blk pos;
+        },
         else => unsupported_platform(),
     };
 }
@@ -132,6 +148,7 @@ pub fn present() void {
             .Wayland => linux_wayland_present_frame(),
             else => unsupported_platform(),
         },
+        .windows => windows_present_frame(),
         else => unsupported_platform(),
     }
 }
