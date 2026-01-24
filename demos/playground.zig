@@ -1,6 +1,7 @@
 const std = @import("std");
 const window = @import("window");
 const render = @import("renderer");
+const input = @import("input");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -27,10 +28,10 @@ pub fn main() !void {
         quit = window.pollEvents();
         render.fillCanvas(canvas, render.colors.BLACK);
 
-        if (window.isKeyDown(.Right)) {
+        if (input.isKeyDown(.Right)) {
             circle_x += 1;
         }
-        if (window.isKeyDown(.Left)) {
+        if (input.isKeyDown(.Left)) {
             circle_x -= 1;
         }
 

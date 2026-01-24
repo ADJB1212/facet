@@ -23,6 +23,11 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const input_lib = b.addModule("input_manager", .{
+        .root_source_file = b.path("src/input.zig"),
+        .optimize = optimize,
+    });
+
     const demos = [_]struct { name: []const u8, root: []const u8, description: []const u8 }{
         .{ .name = "play", .root = "demos/playground.zig", .description = "Run the playground (used for testing new features)" },
         .{ .name = "fp", .root = "demos/first_person.zig", .description = "Run the 3D First Person demo" },
@@ -41,6 +46,7 @@ pub fn build(b: *std.Build) void {
 
         exe.root_module.addImport("renderer", canvas_lib);
         exe.root_module.addImport("window", window_lib);
+        exe.root_module.addImport("input", input_lib);
 
         if (target.result.os.tag == .macos) {
             exe.addObjectFile(.{ .cwd_relative = "zig-out/App.o" });

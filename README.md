@@ -5,7 +5,7 @@ Facet is a Zig-based software rendering graphics library and game engine current
 ## Features
 
 - **Software Renderer**: Direct pixel buffer manipulation for 2D and 3D graphics.
-- **Window Management**: Custom windowing system for macOS (AppKit/CoreGraphics), Windows, Linux (X11/Wayland).
+- **Window Management**: Custom windowing system for macOS (AppKit/CoreGraphics), Windows, and Linux (X11/Wayland).
 - **No Heavy Dependencies**: Lightweight and built with minimal external dependencies.
 - **Demos**: Includes several example projects to demonstrate capabilities:
   - **Asteroids**: A clone of the Asteroids arcade game.

@@ -135,7 +135,7 @@ pub fn drawRect(c: *Canvas, x: i32, y: i32, w: u32, h: u32, color: Color) void {
     }
 }
 
-pub fn normalize_triangle(width: usize, height: usize, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, lx: *i32, hx: *i32, ly: *i32, hy: *i32) bool {
+fn normalize_triangle(width: usize, height: usize, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, lx: *i32, hx: *i32, ly: *i32, hy: *i32) bool {
     lx.* = x1;
     hx.* = x1;
 
@@ -371,7 +371,7 @@ pub fn drawChar(c: *Canvas, ch: u8, x: i32, y: i32, size: i32, color: Color) voi
     }
 }
 
-pub fn measureTextWidth(text: []const u8, size: i32) i32 {
+fn measureTextWidth(text: []const u8, size: i32) i32 {
     if (size <= 0) return 0;
     const len: i32 = @intCast(text.len);
     return len * 8 * size;

@@ -1,6 +1,7 @@
 const std = @import("std");
 const render = @import("renderer");
 const window = @import("window");
+const input = @import("input");
 
 const math = std.math;
 const rand = std.crypto.random;
@@ -323,18 +324,18 @@ fn update(allocator: std.mem.Allocator) !void {
         const ROT_SPEED = 2;
         const SHIP_SPEED = 24;
 
-        if (window.isKeyDown(.A) or window.isKeyDown(.Left)) {
+        if (input.isKeyDown(.A) or input.isKeyDown(.Left)) {
             state.player.rot -= state.delta * math.tau * ROT_SPEED;
         }
 
-        if (window.isKeyDown(.D) or window.isKeyDown(.Right)) {
+        if (input.isKeyDown(.D) or input.isKeyDown(.Right)) {
             state.player.rot += state.delta * math.tau * ROT_SPEED;
         }
 
         const dirAngle = state.player.rot + (math.pi * 0.5);
         const shipDir = Vec2.init(math.cos(dirAngle), math.sin(dirAngle));
 
-        if (window.isKeyDown(.W) or window.isKeyDown(.Up)) {
+        if (input.isKeyDown(.W) or input.isKeyDown(.Up)) {
             state.player.vel = Vec2.add(state.player.vel, Vec2.scale(shipDir, state.delta * SHIP_SPEED));
         }
 
@@ -343,7 +344,7 @@ fn update(allocator: std.mem.Allocator) !void {
         state.player.pos = Vec2.add(state.player.pos, state.player.vel);
         state.player.pos = Vec2.wrap(state.player.pos, SIZE);
 
-        const space_down = window.isKeyDown(.Space);
+        const space_down = input.isKeyDown(.Space);
         if (space_down and !state.last_space_press) {
             try state.projectiles.append(allocator, .{
                 .pos = Vec2.add(state.player.pos, Vec2.scale(shipDir, SCALE * 0.55)),
@@ -545,7 +546,7 @@ fn render_frame(allocator: std.mem.Allocator) !void {
     if (!state.player.isDead()) {
         drawLines(state.player.pos, SCALE, state.player.rot, &SHIP_EDGES, true);
 
-        if ((window.isKeyDown(.W) or window.isKeyDown(.Up)) and @mod(@as(i32, @intFromFloat(state.now * 20)), 2) == 0) {
+        if ((input.isKeyDown(.W) or input.isKeyDown(.Up)) and @mod(@as(i32, @intFromFloat(state.now * 20)), 2) == 0) {
             drawLines(state.player.pos, SCALE, state.player.rot, &.{ Vec2.init(-0.3, -0.4), Vec2.init(0.0, -1.0), Vec2.init(0.3, -0.4) }, true);
         }
     }
@@ -648,7 +649,7 @@ pub fn main() !void {
     while (!quit) {
         quit = window.pollEvents();
 
-        if (window.isKeyDown(.Escape)) std.process.exit(0);
+        if (input.isKeyDown(.Escape)) std.process.exit(0);
 
         const now = timer.read();
         const dt_ns = now - last_time;

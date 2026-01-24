@@ -1,6 +1,7 @@
 const std = @import("std");
 const render = @import("renderer");
 const window = @import("window");
+const input = @import("input");
 
 const Canvas = render.Canvas;
 
@@ -46,7 +47,7 @@ const MAPDATA = [MAP_SIZE * MAP_SIZE]u8{
 const Vec2 = @Vector(2, f32);
 const Vec2i = @Vector(2, i32);
 
-const Input = struct {
+const UserInput = struct {
     forward: bool,
     backward: bool,
     left: bool,
@@ -259,26 +260,26 @@ fn tryMoveAxis(state: *State, move_step: Vec2, axis: usize) void {
     }
 }
 
-fn update(state: *State, dt: f32, input: Input) void {
+fn update(state: *State, dt: f32, in: UserInput) void {
     const rotspeed = ROT_SPEED * dt;
     const movespeed = MOVE_SPEED * dt;
 
-    if (input.left) rotate(state, rotspeed);
-    if (input.right) rotate(state, -rotspeed);
+    if (in.left) rotate(state, rotspeed);
+    if (in.right) rotate(state, -rotspeed);
 
     var move_dir: Vec2 = .{ 0, 0 };
     var moved = false;
 
-    if (input.forward) {
+    if (in.forward) {
         move_dir = state.dir;
         moved = true;
     }
-    if (input.backward) {
+    if (in.backward) {
         move_dir = -state.dir;
         moved = true;
     }
 
-    if (input.escape) std.process.exit(0);
+    if (in.escape) std.process.exit(0);
 
     if (moved) {
         state.walk_timer += dt;
@@ -319,15 +320,15 @@ pub fn main() !void {
         const dt = @as(f32, @floatFromInt(dt_ns)) / @as(f32, @floatFromInt(std.time.ns_per_s));
         const clamped_dt = if (dt > MAX_DT) MAX_DT else dt;
 
-        const input = Input{
-            .forward = window.isKeyDown(.Up) or window.isKeyDown(.W),
-            .backward = window.isKeyDown(.Down) or window.isKeyDown(.S),
-            .left = window.isKeyDown(.Left) or window.isKeyDown(.A),
-            .right = window.isKeyDown(.Right) or window.isKeyDown(.D),
-            .escape = window.isKeyDown(.Escape),
+        const user_input = UserInput{
+            .forward = input.isKeyDown(.Up) or input.isKeyDown(.W),
+            .backward = input.isKeyDown(.Down) or input.isKeyDown(.S),
+            .left = input.isKeyDown(.Left) or input.isKeyDown(.A),
+            .right = input.isKeyDown(.Right) or input.isKeyDown(.D),
+            .escape = input.isKeyDown(.Escape),
         };
 
-        update(&state, clamped_dt, input);
+        update(&state, clamped_dt, user_input);
         render_frame(canvas, &state);
         window.present();
 
