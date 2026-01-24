@@ -43,10 +43,14 @@ const colors = [_]u32{
     render.colors.YELLOW,
 };
 
-pub fn main() !void {
+pub fn main(min_init: std.process.Init.Minimal) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
+
+    var threaded: std.Io.Threaded = .init(allocator, .{ .environ = min_init.environ });
+    defer threaded.deinit();
+    const io = threaded.io();
 
     const width = 900;
     const height = 600;
@@ -57,8 +61,8 @@ pub fn main() !void {
     const canvas = render.getCanvas();
     render.fillCanvas(canvas, render.colors.BLACK);
 
-    var fps: render.FpsManager = .{};
-    fps.setTargetFPS(60);
+    var fps: render.FpsManager = try .init(io);
+    fps.setTargetFPS(120);
 
     window.init();
 
@@ -136,6 +140,7 @@ pub fn main() !void {
         render.drawText(canvas, "Andrew 123456789 (Facet)!", width / 2, height - 100, 4, render.colors.WHITE, .center);
         fps.drawFPS(canvas, width - 90, 15, render.colors.WHITE);
         window.present();
-        fps.waitForNextFrame();
+        try fps.drawFPS(canvas, width - 80, 10, render.colors.WHITE);
+        try fps.waitForNextFrame();
     }
 }
