@@ -249,7 +249,7 @@ fn rotate(state: *State, rot: f32) void {
     state.plane[1] = p[0] * sr + p[1] * cr;
 }
 
-fn tryMoveAxis(state: *State, move_step: Vec2, axis: usize) void {
+inline fn tryMoveAxis(state: *State, move_step: Vec2, axis: usize) void {
     const next = state.pos[axis] + move_step[axis];
 
     const map_x = @as(i32, @intFromFloat(if (axis == 0) next else state.pos[0]));
@@ -292,10 +292,14 @@ fn update(state: *State, dt: f32, in: UserInput) void {
     }
 }
 
-pub fn main() !void {
+pub fn main(min_init: std.process.Init.Minimal) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
+
+    var threaded: std.Io.Threaded = .init(allocator, .{ .environ = min_init.environ });
+    defer threaded.deinit();
+    const io = threaded.io();
 
     try render.init(allocator, SCREEN_WIDTH, SCREEN_HEIGHT);
     defer render.deinit();
@@ -304,7 +308,7 @@ pub fn main() !void {
     var state = init();
     window.init();
 
-    var fps: render.FpsManager = .{};
+    var fps: render.FpsManager = try .init(io);
     fps.setTargetFPS(120.0);
 
     var quit = false;
@@ -332,7 +336,7 @@ pub fn main() !void {
         render_frame(canvas, &state);
         window.present();
 
-        fps.drawFPS(canvas, SCREEN_WIDTH - 80, 0, render.colors.WHITE);
-        fps.waitForNextFrame();
+        try fps.drawFPS(canvas, SCREEN_WIDTH - 80, 0, render.colors.WHITE);
+        try fps.waitForNextFrame();
     }
 }

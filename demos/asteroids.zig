@@ -4,7 +4,6 @@ const window = @import("window");
 const input = @import("input");
 
 const math = std.math;
-const rand = std.crypto.random;
 
 const Vector2 = @Vector(2, f32);
 
@@ -611,10 +610,21 @@ fn resetStage() !void {
     };
 }
 
-pub fn main() !void {
+pub fn main(min_init: std.process.Init.Minimal) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
     defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var threaded: std.Io.Threaded = .init(allocator, .{ .environ = min_init.environ });
+    defer threaded.deinit();
+    const io = threaded.io();
+
+    const clock = try std.Io.Clock.now(.real, io);
+    const seed: u64 = @as(u64, @intCast(clock.toMilliseconds()));
+
+    var prng = std.Random.DefaultPrng.init(seed);
+
+    const rand = prng.random();
 
     try render.init(allocator, @as(usize, @intFromFloat(SIZE[0])), @as(usize, @intFromFloat(SIZE[1])));
     defer render.deinit();
@@ -622,7 +632,7 @@ pub fn main() !void {
     canvas = render.getCanvas();
 
     window.init();
-    var fps: render.FpsManager = .{};
+    var fps: render.FpsManager = try .init(io);
     fps.setTargetFPS(120.0);
 
     var quit = false;
@@ -668,7 +678,7 @@ pub fn main() !void {
 
         window.present();
 
-        fps.drawFPS(canvas, @as(i32, @intFromFloat(SIZE[0])) - 80, 0, render.colors.WHITE);
-        fps.waitForNextFrame();
+        try fps.drawFPS(canvas, @as(i32, @intFromFloat(SIZE[0])) - 80, 0, render.colors.WHITE);
+        try fps.waitForNextFrame();
     }
 }

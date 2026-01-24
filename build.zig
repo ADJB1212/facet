@@ -50,20 +50,20 @@ pub fn build(b: *std.Build) void {
         exe.root_module.addImport("input", input_lib);
 
         if (target.result.os.tag == .macos) {
-            exe.addObjectFile(.{ .cwd_relative = "zig-out/App.o" });
-            exe.linkFramework("AppKit");
-            exe.linkFramework("CoreGraphics");
+            exe.root_module.addObjectFile(.{ .cwd_relative = "zig-out/App.o" });
+            exe.root_module.linkFramework("AppKit", .{});
+            exe.root_module.linkFramework("CoreGraphics", .{});
             exe.step.dependOn(&mac_module.step);
         } else if (target.result.os.tag == .linux) {
-            exe.addCSourceFile(.{ .file = b.path("src/platform/Linux/X11.c"), .flags = &.{} });
-            exe.addCSourceFile(.{ .file = b.path("src/platform/Linux/Wayland.c"), .flags = &.{} });
-            exe.linkSystemLibrary("X11");
-            exe.linkLibC();
+            exe.root_module.addCSourceFile(.{ .file = b.path("src/platform/Linux/X11.c"), .flags = &.{} });
+            exe.root_module.addCSourceFile(.{ .file = b.path("src/platform/Linux/Wayland.c"), .flags = &.{} });
+            exe.root_module.linkSystemLibrary("X11", .{});
+            exe.root_module.link_libc = true;
         } else if (target.result.os.tag == .windows) {
-            exe.addCSourceFile(.{ .file = b.path("src/platform/Windows/App.c"), .flags = &.{} });
-            exe.linkSystemLibrary("user32");
-            exe.linkSystemLibrary("gdi32");
-            exe.linkLibC();
+            exe.root_module.addCSourceFile(.{ .file = b.path("src/platform/Windows/App.c"), .flags = &.{} });
+            exe.root_module.linkSystemLibrary("user32", .{});
+            exe.root_module.linkSystemLibrary("gdi32", .{});
+            exe.root_module.link_libc = true;
         }
 
         b.installArtifact(exe);
