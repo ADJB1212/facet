@@ -76,3 +76,31 @@ pub fn colorLerp(a: Color, b: Color, t: f32) Color {
 
     return rgba(rr, gg, bb, aa);
 }
+
+pub fn blendSlice(dst: []u32, color: Color) void {
+    const sa = alpha(color);
+    if (sa == 0) return;
+    if (sa == 255) {
+        @memset(dst, color);
+        return;
+    }
+
+    const da: u16 = 255 - sa;
+    const s_r: u16 = @as(u16, red(color)) * sa;
+    const s_g: u16 = @as(u16, green(color)) * sa;
+    const s_b: u16 = @as(u16, blue(color)) * sa;
+
+    for (dst) |*d| {
+        const val = d.*;
+        const d_r = red(val);
+        const d_g = green(val);
+        const d_b = blue(val);
+        const d_a = alpha(val);
+
+        const r_out = (@as(u32, d_r) * da + s_r + 128) * 257 >> 16;
+        const g_out = (@as(u32, d_g) * da + s_g + 128) * 257 >> 16;
+        const b_out = (@as(u32, d_b) * da + s_b + 128) * 257 >> 16;
+
+        d.* = rgba(@intCast(r_out), @intCast(g_out), @intCast(b_out), d_a);
+    }
+}

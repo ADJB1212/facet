@@ -88,7 +88,7 @@ fn getPixelPtr(c: *Canvas, x: usize, y: usize) *u32 {
     return &c.pixels[y * c.stride + x];
 }
 
-fn inRenderArea(c: *Canvas, x: i32, y: i32) bool {
+inline fn inRenderArea(c: *Canvas, x: i32, y: i32) bool {
     return 0 <= x and x < c.width and 0 <= y and y < c.height;
 }
 
@@ -233,14 +233,7 @@ pub fn drawRect(c: *Canvas, x: i32, y: i32, w: u32, h: u32, color: Color) void {
     while (cur_y <= end_y) : (cur_y += 1) {
         const row_start = cur_y * c.stride + start_x;
         const row_slice = c.pixels[row_start .. row_start + width];
-
-        if (sa == 255) {
-            @memset(row_slice, color);
-        } else {
-            for (row_slice) |*p| {
-                colors.blendColor(p, color);
-            }
-        }
+        colors.blendSlice(row_slice, color);
     }
 }
 
@@ -275,23 +268,34 @@ fn normalize_triangle(width: usize, height: usize, x1: i32, y1: i32, x2: i32, y2
 }
 
 pub fn drawTriangle(c: *Canvas, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, color: Color) void {
+    const tx1 = x1;
+    const ty1 = y1;
+    var tx2 = x2;
+    var ty2 = y2;
+    var tx3 = x3;
+    var ty3 = y3;
+
+    var det = (tx1 - tx3) * (ty2 - ty3) - (tx2 - tx3) * (ty1 - ty3);
+    if (det < 0) {
+        swap(i32, &tx2, &tx3);
+        swap(i32, &ty2, &ty3);
+        det = -det;
+    }
+
     var lx: i32 = undefined;
     var hx: i32 = undefined;
     var ly: i32 = undefined;
     var hy: i32 = undefined;
 
-    if (!normalize_triangle(c.width, c.height, x1, y1, x2, y2, x3, y3, &lx, &hx, &ly, &hy)) return;
+    if (!normalize_triangle(c.width, c.height, tx1, ty1, tx2, ty2, tx3, ty3, &lx, &hx, &ly, &hy)) return;
 
-    const det = (x1 - x3) * (y2 - y3) - (x2 - x3) * (y1 - y3);
-    const sign_det = sign(i32, det);
+    const du1_dx = ty2 - ty3;
+    const du1_dy = tx3 - tx2;
+    const du2_dx = ty3 - ty1;
+    const du2_dy = tx1 - tx3;
 
-    const du1_dx = y2 - y3;
-    const du1_dy = x3 - x2;
-    const du2_dx = y3 - y1;
-    const du2_dy = x1 - x3;
-
-    var row_u1 = du1_dx * (lx - x3) + du1_dy * (ly - y3);
-    var row_u2 = du2_dx * (lx - x3) + du2_dy * (ly - y3);
+    var row_u1 = du1_dx * (lx - tx3) + du1_dy * (ly - ty3);
+    var row_u2 = du2_dx * (lx - tx3) + du2_dy * (ly - ty3);
 
     var y = ly;
     while (y <= hy) : (y += 1) {
@@ -304,10 +308,7 @@ pub fn drawTriangle(c: *Canvas, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3:
         while (x <= hx) : (x += 1) {
             const cur_u3 = det - cur_u1 - cur_u2;
 
-            if (((sign(i32, cur_u1) == sign_det) or cur_u1 == 0) and
-                ((sign(i32, cur_u2) == sign_det) or cur_u2 == 0) and
-                ((sign(i32, cur_u3) == sign_det) or cur_u3 == 0))
-            {
+            if ((cur_u1 | cur_u2 | cur_u3) >= 0) {
                 colors.blendColor(&row_pixels[@intCast(x)], color);
             }
 
@@ -322,31 +323,58 @@ pub fn drawTriangle(c: *Canvas, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3:
 // aa parameter is for anti-aliasing
 pub fn drawCircle(c: *Canvas, x: i32, y: i32, r: i32, aa: i32, color: Color) void {
     var rect: Rect = undefined;
-    const r_s = r + sign(@TypeOf(r), r);
+    const r_s = r + sign(i32, r);
     if (!normalize_rect(x - r_s, y - r_s, 2 * r_s, 2 * r_s, c.width, c.height, &rect)) return;
 
     const res: i32 = aa + 1;
-    const aa_i: usize = @intCast(aa);
+    const aa_sq = @as(usize, @intCast(aa)) * @as(usize, @intCast(aa));
+    const limit: i64 = @as(i64, res) * res * r * r * 4;
+    const res2 = res * 2;
+    const C_x = 2 - res * x * 2 - res;
+    const C_y = 2 - res * y * 2 - res;
 
-    for (@intCast(rect.v[0])..@intCast(rect.v[2] + 1)) |xr| {
-        for (@intCast(rect.v[1])..@intCast(rect.v[3] + 1)) |yr| {
-            var count: usize = 0;
+    const start_x: usize = @intCast(rect.v[0]);
+    const end_x: usize = @intCast(rect.v[2]);
+    const start_y: usize = @intCast(rect.v[1]);
+    const end_y: usize = @intCast(rect.v[3]);
+
+    const base_alpha = colors.alpha(color);
+    if (base_alpha == 0) return;
+
+    var yr: usize = start_y;
+    while (yr <= end_y) : (yr += 1) {
+        const row_start = yr * c.stride;
+        const row_pixels = c.pixels[row_start..];
+        const yr_i: i32 = @intCast(yr);
+
+        var xr: usize = start_x;
+        while (xr <= end_x) : (xr += 1) {
             const xr_i: i32 = @intCast(xr);
-            const yr_i: i32 = @intCast(yr);
-            for (@intCast(0)..@intCast(aa)) |xr2| {
-                for (@intCast(0)..@intCast(aa)) |yr2| {
-                    const xr2_i: i32 = @intCast(xr2);
-                    const yr2_i: i32 = @intCast(yr2);
-                    const dx = xr_i * res * 2 + 2 + xr2_i * 2 - res * x * 2 - res;
-                    const dy = yr_i * res * 2 + 2 + yr2_i * 2 - res * y * 2 - res;
-                    if (dx * dx + dy * dy <= res * res * r * r * 4) count += 1;
+            var count: usize = 0;
+
+            var yr2: i32 = 0;
+            while (yr2 < aa) : (yr2 += 1) {
+                const dy = yr_i * res2 + yr2 * 2 + C_y;
+                const dy2 = @as(i64, dy) * dy;
+
+                var xr2: i32 = 0;
+                while (xr2 < aa) : (xr2 += 1) {
+                    const dx = xr_i * res2 + xr2 * 2 + C_x;
+                    if (@as(i64, dx) * dx + dy2 <= limit) count += 1;
                 }
             }
 
-            const count_scaled = if (aa_i > 0) count / aa_i / aa_i else count;
-            const a = colors.alpha(color) * count_scaled;
-            const t: Color = @intCast((color & 0x00FFFFFF) | (a << (24)));
-            colors.blendColor(getPixelPtr(c, xr, yr), t);
+            if (count > 0) {
+                var final_alpha: u8 = base_alpha;
+                if (aa_sq > 0) {
+                    final_alpha = @intCast((@as(usize, base_alpha) * count) / aa_sq);
+                }
+
+                if (final_alpha > 0) {
+                    const t: Color = (color & 0x00FFFFFF) | (@as(u32, final_alpha) << 24);
+                    colors.blendColor(&row_pixels[xr], t);
+                }
+            }
         }
     }
 }
