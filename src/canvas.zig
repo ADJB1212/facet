@@ -6,6 +6,32 @@ const font8 = @import("default_font.zig").font8x8;
 
 var canvas: Canvas = undefined;
 const Color = colors.Color;
+const min_rows_per_worker: usize = 64;
+
+const RowRange = struct {
+    start: usize,
+    end: usize,
+};
+
+fn workerCountForRows(rows: usize) usize {
+    if (rows == 0) return 1;
+    const cpu_count = std.Thread.getCpuCount() catch 1;
+    if (cpu_count <= 1) return 1;
+
+    const max_by_rows = (rows + min_rows_per_worker - 1) / min_rows_per_worker;
+    var count = @min(cpu_count, max_by_rows);
+    if (count < 1) count = 1;
+    if (count > rows) count = rows;
+    return count;
+}
+
+fn rowRange(total_rows: usize, worker_index: usize, worker_count: usize) RowRange {
+    const base = total_rows / worker_count;
+    const extra = total_rows % worker_count;
+    const start = worker_index * base + @min(worker_index, extra);
+    const len: usize = base + @as(usize, if (worker_index < extra) 1 else 0);
+    return .{ .start = start, .end = start + len };
+}
 
 pub const Canvas = struct {
     pixels: []u32,
@@ -66,11 +92,76 @@ fn inRenderArea(c: *Canvas, x: i32, y: i32) bool {
     return 0 <= x and x < c.width and 0 <= y and y < c.height;
 }
 
+const FillWork = struct {
+    c: *Canvas,
+    start_y: usize,
+    end_y: usize,
+    color: Color,
+};
+
+fn fillCanvasWorker(work: *FillWork) void {
+    var y: usize = work.start_y;
+    while (y < work.end_y) : (y += 1) {
+        const row = work.c.pixels[y * work.c.stride .. y * work.c.stride + work.c.width];
+        @memset(row, work.color);
+    }
+}
+
+fn fillCanvasSingle(c: *Canvas, color: Color) void {
+    var work = FillWork{
+        .c = c,
+        .start_y = 0,
+        .end_y = c.height,
+        .color = color,
+    };
+    fillCanvasWorker(&work);
+}
+
 pub fn fillCanvas(c: *Canvas, color: Color) void {
-    var y: usize = 0;
-    while (y < c.height) : (y += 1) {
-        const row = c.pixels[y * c.stride .. y * c.stride + c.width];
-        @memset(row, color);
+    const worker_count = workerCountForRows(c.height);
+    if (worker_count <= 1) {
+        fillCanvasSingle(c, color);
+        return;
+    }
+
+    var works = c.allocator.alloc(FillWork, worker_count) catch {
+        fillCanvasSingle(c, color);
+        return;
+    };
+    defer c.allocator.free(works);
+
+    var threads = c.allocator.alloc(std.Thread, worker_count - 1) catch {
+        fillCanvasSingle(c, color);
+        return;
+    };
+    defer c.allocator.free(threads);
+
+    var i: usize = 0;
+    while (i < worker_count) : (i += 1) {
+        const range = rowRange(c.height, i, worker_count);
+        works[i] = .{
+            .c = c,
+            .start_y = range.start,
+            .end_y = range.end,
+            .color = color,
+        };
+    }
+
+    var threads_started: usize = 0;
+    i = 1;
+    while (i < worker_count) : (i += 1) {
+        threads[threads_started] = std.Thread.spawn(.{}, fillCanvasWorker, .{&works[i]}) catch {
+            fillCanvasWorker(&works[i]);
+            continue;
+        };
+        threads_started += 1;
+    }
+
+    fillCanvasWorker(&works[0]);
+
+    i = 0;
+    while (i < threads_started) : (i += 1) {
+        threads[i].join();
     }
 }
 
@@ -137,7 +228,6 @@ pub fn drawRect(c: *Canvas, x: i32, y: i32, w: u32, h: u32, color: Color) void {
 
     const sa = colors.alpha(color);
     if (sa == 0) return;
-
 
     var cur_y = start_y;
     while (cur_y <= end_y) : (cur_y += 1) {
