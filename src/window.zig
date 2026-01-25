@@ -21,16 +21,27 @@ extern fn windows_init_app() void;
 extern fn windows_poll_events() bool;
 extern fn windows_present_frame() void;
 
-pub fn detect_linux_display() enum { X11, Wayland, Unknown } {
-    const env = std.process.getEnvMap(std.heap.page_allocator) catch return .Unknown;
+pub const LinuxDisplayType = enum { X11, Wayland, Unknown };
+var linux_display_type: ?LinuxDisplayType = null;
+
+pub fn detect_linux_display() LinuxDisplayType {
+    if (linux_display_type) |d| return d;
+
+    const env = std.process.getEnvMap(std.heap.page_allocator) catch {
+        linux_display_type = .Unknown;
+        return .Unknown;
+    };
     defer env.deinit();
 
     if (env.get("WAYLAND_DISPLAY") != null) {
+        linux_display_type = .Wayland;
         return .Wayland;
     }
     if (env.get("DISPLAY") != null) {
+        linux_display_type = .X11;
         return .X11;
     }
+    linux_display_type = .Unknown;
     return .Unknown;
 }
 

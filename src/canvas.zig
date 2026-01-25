@@ -128,9 +128,28 @@ fn normalize_rect(x: i32, y: i32, w: i32, h: i32, c_w: usize, c_h: usize, rect: 
 pub fn drawRect(c: *Canvas, x: i32, y: i32, w: u32, h: u32, color: Color) void {
     var rect: Rect = undefined;
     if (!normalize_rect(x, y, @intCast(w), @intCast(h), c.width, c.height, &rect)) return;
-    for (@intCast(rect.v[0])..@intCast(rect.v[2] + 1)) |xr| {
-        for (@intCast(rect.v[1])..@intCast(rect.v[3] + 1)) |yr| {
-            colors.blendColor(getPixelPtr(c, xr, yr), color);
+
+    const start_x: usize = @intCast(rect.v[0]);
+    const end_x: usize = @intCast(rect.v[2]);
+    const start_y: usize = @intCast(rect.v[1]);
+    const end_y: usize = @intCast(rect.v[3]);
+    const width = end_x - start_x + 1;
+
+    const sa = colors.alpha(color);
+    if (sa == 0) return;
+
+
+    var cur_y = start_y;
+    while (cur_y <= end_y) : (cur_y += 1) {
+        const row_start = cur_y * c.stride + start_x;
+        const row_slice = c.pixels[row_start .. row_start + width];
+
+        if (sa == 255) {
+            @memset(row_slice, color);
+        } else {
+            for (row_slice) |*p| {
+                colors.blendColor(p, color);
+            }
         }
     }
 }
@@ -165,39 +184,48 @@ fn normalize_triangle(width: usize, height: usize, x1: i32, y1: i32, x2: i32, y2
     return true;
 }
 
-fn isPointInTriangle(x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, xp: i32, yp: i32, u_1: *i32, u_2: *i32, det: *i32) bool {
-    det.* = (x1 - x3) * (y2 - y3) - (x2 - x3) * (y1 - y3);
-
-    u_1.* = (y2 - y3) * (xp - x3) + (x3 - x2) * (yp - y3);
-    u_2.* = (y3 - y1) * (xp - x3) + (x1 - x3) * (yp - y3);
-
-    const u_3: i32 = det.* - u_1.* - u_2.*;
-
-    return ((sign(i32, u_1.*) == sign(i32, det.*) or u_1.* == 0) and
-        (sign(i32, u_2.*) == sign(i32, det.*) or u_2.* == 0) and
-        (sign(i32, u_3) == sign(i32, det.*) or u_3 == 0));
-}
-
 pub fn drawTriangle(c: *Canvas, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, color: Color) void {
     var lx: i32 = undefined;
     var hx: i32 = undefined;
     var ly: i32 = undefined;
     var hy: i32 = undefined;
 
-    if (normalize_triangle(c.width, c.height, x1, y1, x2, y2, x3, y3, &lx, &hx, &ly, &hy)) {
-        var y: i32 = ly;
-        while (y <= hy) : (y += 1) {
-            var x: i32 = lx;
-            while (x <= hx) : (x += 1) {
-                var u_1: i32 = undefined;
-                var u_2: i32 = undefined;
-                var det: i32 = undefined;
+    if (!normalize_triangle(c.width, c.height, x1, y1, x2, y2, x3, y3, &lx, &hx, &ly, &hy)) return;
 
-                if (isPointInTriangle(x1, y1, x2, y2, x3, y3, x, y, &u_1, &u_2, &det)) {
-                    colors.blendColor(getPixelPtr(c, @intCast(x), @intCast(y)), color);
-                }
+    const det = (x1 - x3) * (y2 - y3) - (x2 - x3) * (y1 - y3);
+    const sign_det = sign(i32, det);
+
+    const du1_dx = y2 - y3;
+    const du1_dy = x3 - x2;
+    const du2_dx = y3 - y1;
+    const du2_dy = x1 - x3;
+
+    var row_u1 = du1_dx * (lx - x3) + du1_dy * (ly - y3);
+    var row_u2 = du2_dx * (lx - x3) + du2_dy * (ly - y3);
+
+    var y = ly;
+    while (y <= hy) : (y += 1) {
+        var cur_u1 = row_u1;
+        var cur_u2 = row_u2;
+        const row_start = @as(usize, @intCast(y)) * c.stride;
+        const row_pixels = c.pixels[row_start..];
+
+        var x = lx;
+        while (x <= hx) : (x += 1) {
+            const cur_u3 = det - cur_u1 - cur_u2;
+
+            if (((sign(i32, cur_u1) == sign_det) or cur_u1 == 0) and
+                ((sign(i32, cur_u2) == sign_det) or cur_u2 == 0) and
+                ((sign(i32, cur_u3) == sign_det) or cur_u3 == 0))
+            {
+                colors.blendColor(&row_pixels[@intCast(x)], color);
             }
+
+            cur_u1 += du1_dx;
+            cur_u2 += du2_dx;
         }
+        row_u1 += du1_dy;
+        row_u2 += du2_dy;
     }
 }
 
@@ -349,23 +377,28 @@ pub fn drawChar(c: *Canvas, ch: u8, x: i32, y: i32, size: i32, color: Color) voi
 
     const glyph = font8[ch - 32];
 
-    for (0..8) |py| {
-        const row = glyph[7 - py];
-
-        for (0..8) |px| {
-            if (((row >> @as(u3, @intCast(px))) & 1) == 0) continue;
-
-            const base_x = x + @as(i32, @intCast(px)) * size;
-            const base_y = y + @as(i32, @intCast(py)) * size;
-
-            for (0..@intCast(size)) |sy| {
-                for (0..@intCast(size)) |sx| {
-                    const dx = base_x + @as(i32, @intCast(sx));
-                    const dy = base_y + @as(i32, @intCast(sy));
-
-                    if (!inRenderArea(c, dx, dy)) continue;
-
-                    colors.blendColor(getPixelPtr(c, @intCast(dx), @intCast(dy)), color);
+    if (size == 1) {
+        for (0..8) |py| {
+            const row = glyph[7 - py];
+            for (0..8) |px| {
+                if (((row >> @as(u3, @intCast(px))) & 1) != 0) {
+                    const dx = x + @as(i32, @intCast(px));
+                    const dy = y + @as(i32, @intCast(py));
+                    if (inRenderArea(c, dx, dy)) {
+                        colors.blendColor(getPixelPtr(c, @intCast(dx), @intCast(dy)), color);
+                    }
+                }
+            }
+        }
+    } else {
+        const u_size: u32 = @intCast(size);
+        for (0..8) |py| {
+            const row = glyph[7 - py];
+            for (0..8) |px| {
+                if (((row >> @as(u3, @intCast(px))) & 1) != 0) {
+                    const base_x = x + @as(i32, @intCast(px)) * size;
+                    const base_y = y + @as(i32, @intCast(py)) * size;
+                    drawRect(c, base_x, base_y, u_size, u_size, color);
                 }
             }
         }
