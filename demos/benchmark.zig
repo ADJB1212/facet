@@ -109,16 +109,16 @@ fn benchText(canvas: *renderer.Canvas, rand: std.Random) void {
     renderer.drawText(canvas, "Benchmark", x, y, size, color, .left);
 }
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const arena: std.mem.Allocator = init.arena.allocator();
+
+    const io = init.io;
 
     var stdout_buffer: [1024]u8 = undefined;
-    var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
-    const stdout = &stdout_writer.interface;
+    var stdout_file_writer: std.Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
+    const stdout = &stdout_file_writer.interface;
 
-    try renderer.init(allocator, WIDTH, HEIGHT);
+    try renderer.init(arena, WIDTH, HEIGHT);
     defer renderer.deinit();
 
     const canvas = renderer.getCanvas();
