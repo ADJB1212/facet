@@ -114,6 +114,10 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
+    var stdout_buffer: [1024]u8 = undefined;
+    var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
+    const stdout = &stdout_writer.interface;
+
     try renderer.init(allocator, WIDTH, HEIGHT);
     defer renderer.deinit();
 
@@ -134,12 +138,13 @@ pub fn main() !void {
         .{ .name = "Draw Text", .func = benchText, .iterations = NUM_OPERATIONS / 5 },
     };
 
-    // The 7 std.debug.print statements below were written by Gemini 3 Pro (for more readable output)
-    std.debug.print("\nFacet Software Renderer Benchmark\n", .{});
-    std.debug.print("Resolution: {d}x{d}\n", .{ WIDTH, HEIGHT });
-    std.debug.print("----------------------------------------------------------------\n", .{});
-    std.debug.print("{s:<20} | {s:<12} | {s:<12} | {s:<12}\n", .{ "Test Name", "Iterations", "Total Time", "Op/s" });
-    std.debug.print("----------------------------------------------------------------\n", .{});
+    // The 7 print statements below were written by Gemini 3 Pro (for more readable output)
+    try stdout.print("\nFacet Software Renderer Benchmark\n", .{});
+    try stdout.print("Resolution: {d}x{d}\n", .{ WIDTH, HEIGHT });
+    try stdout.print("----------------------------------------------------------------\n", .{});
+    try stdout.print("{s:<20} | {s:<12} | {s:<12} | {s:<12}\n", .{ "Test Name", "Iterations", "Total Time", "Op/s" });
+    try stdout.print("----------------------------------------------------------------\n", .{});
+    try stdout.flush();
 
     var timer = try std.time.Timer.start();
 
@@ -152,7 +157,9 @@ pub fn main() !void {
         const elapsed_s = @as(f64, @floatFromInt(elapsed_ns)) / std.time.ns_per_s;
         const ops_per_sec = @as(f64, @floatFromInt(bench.iterations)) / elapsed_s;
 
-        std.debug.print("{s:<20} | {d:<12} | {d:>.4}s      | {d:>.2}\n", .{ bench.name, bench.iterations, elapsed_s, ops_per_sec });
+        try stdout.print("{s:<20} | {d:<12} | {d:>.4}s      | {d:>.2}\n", .{ bench.name, bench.iterations, elapsed_s, ops_per_sec });
+        try stdout.flush();
     }
-    std.debug.print("----------------------------------------------------------------\n", .{});
+    try stdout.print("----------------------------------------------------------------\n", .{});
+    try stdout.flush();
 }
