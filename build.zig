@@ -32,6 +32,7 @@ pub fn build(b: *std.Build) void {
         .{ .name = "play", .root = "demos/playground.zig", .description = "Run the playground (used for testing new features)" },
         .{ .name = "fp", .root = "demos/first_person.zig", .description = "Run the 3D First Person demo" },
         .{ .name = "asteroids", .root = "demos/asteroids.zig", .description = "Run the Asteroids game demo" },
+        .{ .name = "benchmark", .root = "demos/benchmark.zig", .description = "Run the software renderer benchmark" },
     };
 
     for (demos) |demo| {

@@ -225,7 +225,8 @@ pub fn drawCircle(c: *Canvas, x: i32, y: i32, r: i32, aa: i32, color: Color) voi
                 }
             }
 
-            const a = colors.alpha(color) * count / aa_i / aa_i;
+            const count_scaled = if (aa_i > 0) count / aa_i / aa_i else count;
+            const a = colors.alpha(color) * count_scaled;
             const t: Color = @intCast((color & 0x00FFFFFF) | (a << (24)));
             colors.blendColor(getPixelPtr(c, xr, yr), t);
         }
