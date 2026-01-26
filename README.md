@@ -1,5 +1,8 @@
 # Facet
 
+![Zig](https://img.shields.io/badge/Zig-0.15.2-orange)
+[![License: GPL 3.0](https://img.shields.io/badge/License-GPL_3.0-blue.svg)](https://opensource.org/license/gpl-3-0)
+
 Facet is a Zig-based software rendering graphics library and game engine currently in early development. It provides a simple API for pixel manipulation, window management, and input handling across macOS, Windows, and Linux.
 
 ## Features
@@ -14,7 +17,7 @@ Facet is a Zig-based software rendering graphics library and game engine current
 
 ## Requirements
 
-- **Zig**: Version 0.15.2 or later.
+- **Zig**: Version 0.15.2 (This library will follow the latest tagged release)
 
 ### Platform-Specific
 
@@ -45,14 +48,6 @@ zig build fp
 ```bash
 zig build play
 ```
-
-## Project Structure
-
-- `src/`: Core library source code.
-  - `canvas.zig`: Software renderer implementation.
-  - `window.zig`: Window management and input.
-  - `platform/`: Platform-specific backend code.
-- `demos/`: Example applications using the library.
 
 ## License
 
