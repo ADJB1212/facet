@@ -15,6 +15,10 @@ fn getRandomCoordinate(rand: std.Random, max: usize) i32 {
     return @intCast(rand.intRangeAtMost(usize, 0, max));
 }
 
+fn getRandomCoordinateF32(rand: std.Random, max: f32) f32 {
+    return rand.float(f32) * max;
+}
+
 const BenchmarkFn = *const fn (canvas: *renderer.Canvas, rand: std.Random) void;
 
 const Benchmark = struct {
@@ -74,6 +78,23 @@ fn benchTriangles(canvas: *renderer.Canvas, rand: std.Random) void {
     renderer.drawTriangle(canvas, x1, y1, x2, y2, x3, y3, color);
 }
 
+fn benchTriangles3D(canvas: *renderer.Canvas, rand: std.Random) void {
+    const x1 = getRandomCoordinateF32(rand, WIDTH - 1);
+    const y1 = getRandomCoordinateF32(rand, HEIGHT - 1);
+    const z1 = getRandomCoordinateF32(rand, 1.0);
+
+    const x2 = getRandomCoordinateF32(rand, WIDTH - 1);
+    const y2 = getRandomCoordinateF32(rand, HEIGHT - 1);
+    const z2 = getRandomCoordinateF32(rand, 1.0);
+
+    const x3 = getRandomCoordinateF32(rand, WIDTH - 1);
+    const y3 = getRandomCoordinateF32(rand, HEIGHT - 1);
+    const z3 = getRandomCoordinateF32(rand, 1.0);
+
+    const color = getRandomColor(rand);
+    renderer.drawTriangle3D(canvas, .{ x1, y1, z1 }, .{ x2, y2, z2 }, .{ x3, y3, z3 }, color);
+}
+
 fn benchCircles(canvas: *renderer.Canvas, rand: std.Random) void {
     const x = getRandomCoordinate(rand, WIDTH - 1);
     const y = getRandomCoordinate(rand, HEIGHT - 1);
@@ -122,6 +143,7 @@ pub fn main() !void {
     defer renderer.deinit();
 
     const canvas = renderer.getCanvas();
+    renderer.clearDepth(canvas, 1.0);
     var prng = std.Random.DefaultPrng.init(0);
     const rand = prng.random();
 
@@ -132,6 +154,7 @@ pub fn main() !void {
         .{ .name = "Draw Line (Thick)", .func = benchThickLines, .iterations = NUM_OPERATIONS / 2 },
         .{ .name = "Draw Rectangle", .func = benchRectangles, .iterations = NUM_OPERATIONS / 2 },
         .{ .name = "Draw Triangle", .func = benchTriangles, .iterations = 100 },
+        .{ .name = "Draw Triangle 3D", .func = benchTriangles3D, .iterations = 100 },
         .{ .name = "Draw Circle", .func = benchCircles, .iterations = NUM_OPERATIONS / 5 },
         .{ .name = "Draw AA Circle", .func = benchAntiAliasedCircles, .iterations = NUM_OPERATIONS / 10 },
         .{ .name = "Draw Bezier", .func = benchBezier, .iterations = NUM_OPERATIONS / 5 },

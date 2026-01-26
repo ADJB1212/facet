@@ -1,6 +1,6 @@
 const std = @import("std");
 pub const colors = @import("color.zig");
-const math = @import("math.zig");
+const math = @import("math");
 pub const FpsManager = @import("fps.zig").FpsManager;
 const font8 = @import("default_font.zig").font8x8;
 
@@ -35,6 +35,7 @@ fn rowRange(total_rows: usize, worker_index: usize, worker_count: usize) RowRang
 
 pub const Canvas = struct {
     pixels: []u32,
+    depth_buffer: []f32,
     width: usize,
     height: usize,
     stride: usize,
@@ -42,8 +43,10 @@ pub const Canvas = struct {
 
     pub fn init(allocator: std.mem.Allocator, width: usize, height: usize) !Canvas {
         const pixels = try allocator.alloc(u32, width * height);
+        const depth_buffer = try allocator.alloc(f32, width * height);
         return Canvas{
             .pixels = pixels,
+            .depth_buffer = depth_buffer,
             .width = width,
             .height = height,
             .stride = width,
@@ -53,6 +56,7 @@ pub const Canvas = struct {
 
     pub fn deinit(self: *Canvas) void {
         self.allocator.free(self.pixels);
+        self.allocator.free(self.depth_buffer);
     }
 };
 
@@ -163,6 +167,10 @@ pub fn fillCanvas(c: *Canvas, color: Color) void {
     while (i < threads_started) : (i += 1) {
         threads[i].join();
     }
+}
+
+pub fn clearDepth(c: *Canvas, value: f32) void {
+    @memset(c.depth_buffer, value);
 }
 
 pub fn setPixel(c: *Canvas, x: i32, y: i32, color: Color) void {
@@ -317,6 +325,53 @@ pub fn drawTriangle(c: *Canvas, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3:
         }
         row_u1 += du1_dy;
         row_u2 += du2_dy;
+    }
+}
+
+pub fn drawTriangle3D(c: *Canvas, v0: math.Vec3, v1: math.Vec3, v2: math.Vec3, color: Color) void {
+    const w = @as(f32, @floatFromInt(c.width));
+    const h = @as(f32, @floatFromInt(c.height));
+
+    var min_x = @min(v0[0], @min(v1[0], v2[0]));
+    var max_x = @max(v0[0], @max(v1[0], v2[0]));
+    var min_y = @min(v0[1], @min(v1[1], v2[1]));
+    var max_y = @max(v0[1], @max(v1[1], v2[1]));
+
+    min_x = @max(0.0, min_x);
+    max_x = @min(w - 1.0, max_x);
+    min_y = @max(0.0, min_y);
+    max_y = @min(h - 1.0, max_y);
+
+    const min_xi = @as(i32, @intFromFloat(min_x));
+    const max_xi = @as(i32, @intFromFloat(max_x));
+    const min_yi = @as(i32, @intFromFloat(min_y));
+    const max_yi = @as(i32, @intFromFloat(max_y));
+
+    const area = (v1[0] - v0[0]) * (v2[1] - v0[1]) - (v1[1] - v0[1]) * (v2[0] - v0[0]);
+    if (@abs(area) < 1e-6) return;
+
+    const inv_area = 1.0 / area;
+
+    var y = min_yi;
+    while (y <= max_yi) : (y += 1) {
+        var x = min_xi;
+        while (x <= max_xi) : (x += 1) {
+            const p = math.Vec3{ @as(f32, @floatFromInt(x)) + 0.5, @as(f32, @floatFromInt(y)) + 0.5, 0 };
+
+            const w0 = ((v1[0] - p[0]) * (v2[1] - p[1]) - (v1[1] - p[1]) * (v2[0] - p[0])) * inv_area;
+            const w1 = ((v2[0] - p[0]) * (v0[1] - p[1]) - (v2[1] - p[1]) * (v0[0] - p[0])) * inv_area;
+            const w2 = 1.0 - w0 - w1;
+
+            if (w0 >= 0 and w1 >= 0 and w2 >= 0) {
+                const z = w0 * v0[2] + w1 * v1[2] + w2 * v2[2];
+                const idx = @as(usize, @intCast(y)) * c.stride + @as(usize, @intCast(x));
+
+                if (z < c.depth_buffer[idx]) {
+                    c.depth_buffer[idx] = z;
+                    colors.blendColor(&c.pixels[idx], color);
+                }
+            }
+        }
     }
 }
 
