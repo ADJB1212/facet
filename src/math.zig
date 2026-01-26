@@ -34,9 +34,9 @@ pub const Mat4 = struct {
 
     pub fn mulVec(m: Mat4, v: Vec4) Vec4 {
         var res: Vec4 = undefined;
-        for (0..4) |row| {
+         inline for (0..4) |row| {
             var sum: f32 = 0;
-            for (0..4) |col| {
+           inline for (0..4) |col| {
                 sum += m.data[row][col] * v[col];
             }
             res[row] = sum;
@@ -96,13 +96,13 @@ pub const Mat4 = struct {
     pub fn perspective(fov: f32, aspect: f32, near: f32, far: f32) Mat4 {
         const tan_half_fov = @tan(fov / 2.0);
         var m = Mat4{ .data = [_][4]f32{ .{ 0, 0, 0, 0 }, .{ 0, 0, 0, 0 }, .{ 0, 0, 0, 0 }, .{ 0, 0, 0, 0 } } };
-        
+
         m.data[0][0] = 1.0 / (aspect * tan_half_fov);
         m.data[1][1] = 1.0 / tan_half_fov;
         m.data[2][2] = -(far + near) / (far - near);
         m.data[2][3] = -(2.0 * far * near) / (far - near);
         m.data[3][2] = -1.0;
-        
+
         return m;
     }
 };

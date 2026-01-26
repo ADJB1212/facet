@@ -138,7 +138,7 @@ pub fn main(min_init: std.process.Init.Minimal) !void {
         render.drawCircle(canvas, circle_x, 150, 50, 2, render.colors.MAGENTA);
         render.drawBezier(canvas, 130, 140, 300, 280, 134, 500, 3, render.colors.WHITE);
         render.drawText(canvas, "Andrew 123456789 (Facet)!", width / 2, height - 100, 4, render.colors.WHITE, .center);
-        fps.drawFPS(canvas, width - 90, 15, render.colors.WHITE);
+        try fps.drawFPS(canvas, width - 90, 15, render.colors.WHITE);
         window.present();
         try fps.drawFPS(canvas, width - 80, 10, render.colors.WHITE);
         try fps.waitForNextFrame();
