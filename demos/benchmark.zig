@@ -122,6 +122,7 @@ pub fn main() !void {
     defer renderer.deinit();
 
     const canvas = renderer.getCanvas();
+    renderer.clearDepth(canvas, 1.0);
     var prng = std.Random.DefaultPrng.init(0);
     const rand = prng.random();
 

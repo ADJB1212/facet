@@ -1,6 +1,6 @@
 const std = @import("std");
 pub const colors = @import("color.zig");
-const math = @import("math.zig");
+const math = @import("math");
 pub const FpsManager = @import("fps.zig").FpsManager;
 const font8 = @import("default_font.zig").font8x8;
 
@@ -35,6 +35,7 @@ fn rowRange(total_rows: usize, worker_index: usize, worker_count: usize) RowRang
 
 pub const Canvas = struct {
     pixels: []u32,
+    depth_buffer: []f32,
     width: usize,
     height: usize,
     stride: usize,
@@ -42,8 +43,10 @@ pub const Canvas = struct {
 
     pub fn init(allocator: std.mem.Allocator, width: usize, height: usize) !Canvas {
         const pixels = try allocator.alloc(u32, width * height);
+        const depth_buffer = try allocator.alloc(f32, width * height);
         return Canvas{
             .pixels = pixels,
+            .depth_buffer = depth_buffer,
             .width = width,
             .height = height,
             .stride = width,
@@ -53,6 +56,7 @@ pub const Canvas = struct {
 
     pub fn deinit(self: *Canvas) void {
         self.allocator.free(self.pixels);
+        self.allocator.free(self.depth_buffer);
     }
 };
 
@@ -163,6 +167,10 @@ pub fn fillCanvas(c: *Canvas, color: Color) void {
     while (i < threads_started) : (i += 1) {
         threads[i].join();
     }
+}
+
+pub fn clearDepth(c: *Canvas, value: f32) void {
+    @memset(c.depth_buffer, value);
 }
 
 pub fn setPixel(c: *Canvas, x: i32, y: i32, color: Color) void {
