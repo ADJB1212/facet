@@ -24,6 +24,7 @@ const PITCH_PIXELS = 140.0;
 
 const BOB_FREQ = 10.0;
 const BOB_VIEW_Y = 3.0;
+const WEAPON_BOB = 5.0;
 
 const HIT_MARK_TIME = 0.12;
 
@@ -230,6 +231,36 @@ fn drawMinimap(canvas: *Canvas, state: *const State) void {
     }
 }
 
+fn drawHud(canvas: *Canvas, state: *const State, center_y: f32) void {
+    const cross_x = SCREEN_WIDTH / 2;
+    const cross_y = @as(i32, @intFromFloat(center_y));
+    const cross_size = 6;
+    const gap = 3;
+
+    render.drawLine(canvas, cross_x - cross_size - gap, cross_y, cross_x - gap, cross_y, 1, render.colors.WHITE);
+    render.drawLine(canvas, cross_x + gap, cross_y, cross_x + cross_size + gap, cross_y, 1, render.colors.WHITE);
+    render.drawLine(canvas, cross_x, cross_y - cross_size - gap, cross_x, cross_y - gap, 1, render.colors.WHITE);
+    render.drawLine(canvas, cross_x, cross_y + gap, cross_x, cross_y + cross_size + gap, 1, render.colors.WHITE);
+
+    if (state.hit_timer > 0.0) {
+        render.drawLine(canvas, cross_x - 8, cross_y - 8, cross_x - 3, cross_y - 3, 1, render.colors.YELLOW);
+        render.drawLine(canvas, cross_x + 8, cross_y - 8, cross_x + 3, cross_y - 3, 1, render.colors.YELLOW);
+        render.drawLine(canvas, cross_x - 8, cross_y + 8, cross_x - 3, cross_y + 3, 1, render.colors.YELLOW);
+        render.drawLine(canvas, cross_x + 8, cross_y + 8, cross_x + 3, cross_y + 3, 1, render.colors.YELLOW);
+    }
+
+    const bob_x = @as(i32, @intFromFloat(@sin(state.walk_timer * BOB_FREQ) * WEAPON_BOB));
+    const bob_y = @as(i32, @intFromFloat(@abs(@cos(state.walk_timer * BOB_FREQ)) * WEAPON_BOB));
+    const gun_w = 120;
+    const gun_h = 70;
+    const gun_x = (SCREEN_WIDTH / 2) - (gun_w / 2) + bob_x;
+    const gun_y = SCREEN_HEIGHT - gun_h - 10 + bob_y;
+
+    render.drawRect(canvas, gun_x, gun_y, gun_w, gun_h, 0xFF2B2B2B);
+    render.drawRect(canvas, gun_x + 10, gun_y + 10, gun_w - 20, gun_h - 20, 0xFF4A4A4A);
+    render.drawRect(canvas, gun_x + gun_w - 25, gun_y + 20, 16, 16, render.colors.RED);
+}
+
 fn raycastColumn(canvas: *Canvas, state: *const State, x: i32, center_y: f32) void {
     const x_f = @as(f32, @floatFromInt(x));
     const w_f = @as(f32, @floatFromInt(SCREEN_WIDTH));
@@ -334,7 +365,8 @@ fn raycastColumn(canvas: *Canvas, state: *const State, x: i32, center_y: f32) vo
 
 fn render_frame(canvas: *Canvas, state: *const State) void {
     const bob_offset = @as(i32, @intFromFloat(@sin(state.walk_timer * BOB_FREQ) * BOB_VIEW_Y));
-    const center_y = (@as(f32, @floatFromInt(SCREEN_HEIGHT)) / 2.0) + @as(f32, @floatFromInt(bob_offset));
+    const pitch_total = state.pitch;
+    const center_y = (@as(f32, @floatFromInt(SCREEN_HEIGHT)) / 2.0) + @as(f32, @floatFromInt(bob_offset)) + (pitch_total * PITCH_PIXELS);
 
     var x: i32 = 0;
     while (x < SCREEN_WIDTH) : (x += 1) {
@@ -342,6 +374,7 @@ fn render_frame(canvas: *Canvas, state: *const State) void {
     }
 
     drawMinimap(canvas, state);
+    drawHud(canvas, state, center_y);
 }
 
 fn rotate(state: *State, rot: f32) void {
