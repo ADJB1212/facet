@@ -8,41 +8,6 @@ const Vec3 = math.Vec3;
 const Vec4 = math.Vec4;
 const Mat4 = math.Mat4;
 
-const vertices = [_]Vec3{
-    .{ -1, -1, -1 },
-    .{ 1, -1, -1 },
-    .{ 1, 1, -1 },
-    .{ -1, 1, -1 },
-    .{ -1, -1, 1 },
-    .{ 1, -1, 1 },
-    .{ 1, 1, 1 },
-    .{ -1, 1, 1 },
-};
-
-const indices = [_]u32{
-    0, 1, 2, 0, 2, 3,
-    5, 4, 7, 5, 7, 6,
-    4, 0, 3, 4, 3, 7,
-    1, 5, 6, 1, 6, 2,
-    3, 2, 6, 3, 6, 7,
-    4, 5, 1, 4, 1, 0,
-};
-
-const colors = [_]u32{
-    render.colors.RED,
-    render.colors.RED,
-    render.colors.CYAN,
-    render.colors.CYAN,
-    render.colors.GREEN,
-    render.colors.GREEN,
-    render.colors.MAGENTA,
-    render.colors.MAGENTA,
-    render.colors.BLUE,
-    render.colors.BLUE,
-    render.colors.YELLOW,
-    render.colors.YELLOW,
-};
-
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -56,6 +21,24 @@ pub fn main() !void {
 
     const canvas = render.getCanvas();
     render.fillCanvas(canvas, render.colors.BLACK);
+
+    var cube = try render.mesh.createCube(allocator, 1.0);
+    defer cube.deinit();
+
+    var plane = try render.mesh.createPlane(allocator, 10.0, 10.0, render.colors.darken(render.colors.GREEN, 0.5));
+    defer plane.deinit();
+
+    var sphere = try render.mesh.createSphere(allocator, 0.8, 16, 16, render.colors.RED);
+    defer sphere.deinit();
+
+    var cylinder = try render.mesh.createCylinder(allocator, 0.5, 1.5, 16, render.colors.MAGENTA);
+    defer cylinder.deinit();
+
+    var cone = try render.mesh.createCone(allocator, 0.6, 1.5, 16, render.colors.YELLOW);
+    defer cone.deinit();
+
+    var torus = try render.mesh.createTorus(allocator, 0.6, 0.2, 16, 32, render.colors.CYAN);
+    defer torus.deinit();
 
     var fps: render.FpsManager = .{};
     fps.setTargetFPS(60);
@@ -90,44 +73,45 @@ pub fn main() !void {
 
         const aspect = @as(f32, @floatFromInt(width)) / @as(f32, @floatFromInt(height));
         const projection = Mat4.perspective(std.math.degreesToRadians(45.0), aspect, 0.1, 100.0);
+        const view = Mat4.translate(.{ 0, -2.5, -9.0 });
 
-        const view = Mat4.translate(.{ 0, 0, -5.0 });
-        const scale = Mat4.scale(.{ 0.5, 0.5, 0.5 });
-        const rotation = Mat4.mul(Mat4.rotateX(angle * 0.5), Mat4.rotateY(angle));
-        const model = Mat4.mul(rotation, scale);
+        // Draw Plane
+        const model_plane = Mat4.identity();
+        const mvp_plane = Mat4.mul(projection, Mat4.mul(view, model_plane));
+        render.drawMesh(canvas, plane, mvp_plane);
 
-        const mvp = Mat4.mul(projection, Mat4.mul(view, model));
+        // Draw Cube
+        const rot_cube = Mat4.mul(Mat4.rotateX(angle * 0.5), Mat4.rotateY(angle));
+        const trans_cube = Mat4.translate(.{ -1.5, 0.5, 0 });
+        const model_cube = Mat4.mul(trans_cube, rot_cube);
+        const mvp_cube = Mat4.mul(projection, Mat4.mul(view, model_cube));
+        render.drawMesh(canvas, cube, mvp_cube);
 
-        var transformed_verts: [8]Vec4 = undefined;
+        // Draw Sphere
+        const trans_sphere = Mat4.translate(.{ 1.5, 0.8, 0 });
+        const model_sphere = Mat4.mul(trans_sphere, Mat4.rotateY(-angle));
+        const mvp_sphere = Mat4.mul(projection, Mat4.mul(view, model_sphere));
+        render.drawMesh(canvas, sphere, mvp_sphere);
 
-        for (vertices, 0..) |v, i| {
-            const v4 = Vec4{ v[0], v[1], v[2], 1.0 };
-            transformed_verts[i] = Mat4.mulVec(mvp, v4);
-        }
+        // Draw Cylinder
+        const trans_cyl = Mat4.translate(.{ -3.5, 0.75, 0 });
+        const rot_cyl = Mat4.rotateX(std.math.degreesToRadians(30.0));
+        const model_cyl = Mat4.mul(trans_cyl, Mat4.mul(rot_cyl, Mat4.rotateY(angle * 0.8)));
+        const mvp_cyl = Mat4.mul(projection, Mat4.mul(view, model_cyl));
+        render.drawMesh(canvas, cylinder, mvp_cyl);
 
-        var i: usize = 0;
-        while (i < indices.len) : (i += 3) {
-            const idx0 = indices[i];
-            const idx1 = indices[i + 1];
-            const idx2 = indices[i + 2];
+        // Draw Cone
+        const trans_cone = Mat4.translate(.{ 3.5, 0.75, 0 });
+        const model_cone = Mat4.mul(trans_cone, Mat4.rotateY(angle * 1.2));
+        const mvp_cone = Mat4.mul(projection, Mat4.mul(view, model_cone));
+        render.drawMesh(canvas, cone, mvp_cone);
 
-            const v0c = transformed_verts[idx0];
-            const v1c = transformed_verts[idx1];
-            const v2c = transformed_verts[idx2];
-
-            if (v0c[3] < 0.1 or v1c[3] < 0.1 or v2c[3] < 0.1) continue;
-
-            const v0_ndc = v0c / @as(Vec4, @splat(v0c[3]));
-            const v1_ndc = v1c / @as(Vec4, @splat(v1c[3]));
-            const v2_ndc = v2c / @as(Vec4, @splat(v2c[3]));
-
-            const v0_screen = Vec3{ (v0_ndc[0] + 1.0) * 0.5 * @as(f32, @floatFromInt(width)), (1.0 - v0_ndc[1]) * 0.5 * @as(f32, @floatFromInt(height)), v0_ndc[2] };
-            const v1_screen = Vec3{ (v1_ndc[0] + 1.0) * 0.5 * @as(f32, @floatFromInt(width)), (1.0 - v1_ndc[1]) * 0.5 * @as(f32, @floatFromInt(height)), v1_ndc[2] };
-            const v2_screen = Vec3{ (v2_ndc[0] + 1.0) * 0.5 * @as(f32, @floatFromInt(width)), (1.0 - v2_ndc[1]) * 0.5 * @as(f32, @floatFromInt(height)), v2_ndc[2] };
-
-            const color = colors[i / 3];
-            render.drawTriangle3D(canvas, v0_screen, v1_screen, v2_screen, color);
-        }
+        // Draw Torus
+        const trans_torus = Mat4.translate(.{ 0, 2.0, -1.0 });
+        const rot_torus = Mat4.mul(Mat4.rotateX(angle), Mat4.rotateY(angle * 0.5));
+        const model_torus = Mat4.mul(trans_torus, rot_torus);
+        const mvp_torus = Mat4.mul(projection, Mat4.mul(view, model_torus));
+        render.drawMesh(canvas, torus, mvp_torus);
 
         render.drawRect(canvas, 20, 20, 100, 180, render.colors.CYAN);
         render.drawTriangle(canvas, 220, 100, 8, 300, 200, 20, render.colors.RED);
