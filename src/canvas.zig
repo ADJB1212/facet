@@ -1,5 +1,6 @@
 const std = @import("std");
 pub const colors = @import("color.zig");
+pub const mesh = @import("mesh.zig");
 const math = @import("math");
 pub const FpsManager = @import("fps.zig").FpsManager;
 const font8 = @import("default_font.zig").font8x8;
@@ -316,9 +317,7 @@ pub fn drawTriangle(c: *Canvas, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3:
         while (x <= hx) : (x += 1) {
             const cur_u3 = det - cur_u1 - cur_u2;
 
-            if ((cur_u1 | cur_u2 | cur_u3) >= 0) {
-                colors.blendColor(&row_pixels[@intCast(x)], color);
-            }
+            if ((cur_u1 | cur_u2 | cur_u3) >= 0) colors.blendColor(&row_pixels[@intCast(x)], color);
 
             cur_u1 += du1_dx;
             cur_u2 += du2_dx;
@@ -349,29 +348,144 @@ pub fn drawTriangle3D(c: *Canvas, v0: math.Vec3, v1: math.Vec3, v2: math.Vec3, c
 
     const area = (v1[0] - v0[0]) * (v2[1] - v0[1]) - (v1[1] - v0[1]) * (v2[0] - v0[0]);
     if (@abs(area) < 1e-6) return;
-
     const inv_area = 1.0 / area;
+
+    const w0_dx = (v1[1] - v2[1]) * inv_area;
+    const w0_dy = (v2[0] - v1[0]) * inv_area;
+
+    const w1_dx = (v2[1] - v0[1]) * inv_area;
+    const w1_dy = (v0[0] - v2[0]) * inv_area;
+
+    const w2_dx = (v0[1] - v1[1]) * inv_area;
+    const w2_dy = (v1[0] - v0[0]) * inv_area;
+
+    const start_x = @as(f32, @floatFromInt(min_xi)) + 0.5;
+    const start_y = @as(f32, @floatFromInt(min_yi)) + 0.5;
+
+    var w0_row = ((v2[0] - v1[0]) * (start_y - v1[1]) - (v2[1] - v1[1]) * (start_x - v1[0])) * inv_area;
+    var w1_row = ((v0[0] - v2[0]) * (start_y - v2[1]) - (v0[1] - v2[1]) * (start_x - v2[0])) * inv_area;
+    var w2_row = ((v1[0] - v0[0]) * (start_y - v0[1]) - (v1[1] - v0[1]) * (start_x - v0[0])) * inv_area;
+
+    const sa = colors.alpha(color);
+    const is_opaque = (sa == 255);
+
+    const simd_width = 4;
+    const VecF = @Vector(simd_width, f32);
+    const offsets_x: VecF = .{ 0.0, 1.0, 2.0, 3.0 };
+
+    const w0_dx_v: VecF = @splat(w0_dx);
+    const w1_dx_v: VecF = @splat(w1_dx);
+    const w2_dx_v: VecF = @splat(w2_dx);
+
+    const w0_step_v = w0_dx_v * @as(VecF, @splat(@floatFromInt(simd_width)));
+    const w1_step_v = w1_dx_v * @as(VecF, @splat(@floatFromInt(simd_width)));
+    const w2_step_v = w2_dx_v * @as(VecF, @splat(@floatFromInt(simd_width)));
+
+    const v0z_v: VecF = @splat(v0[2]);
+    const v1z_v: VecF = @splat(v1[2]);
+    const v2z_v: VecF = @splat(v2[2]);
+    const zero_v: VecF = @splat(0.0);
 
     var y = min_yi;
     while (y <= max_yi) : (y += 1) {
+        var w0_v = @as(VecF, @splat(w0_row)) + w0_dx_v * offsets_x;
+        var w1_v = @as(VecF, @splat(w1_row)) + w1_dx_v * offsets_x;
+        var w2_v = @as(VecF, @splat(w2_row)) + w2_dx_v * offsets_x;
+
         var x = min_xi;
-        while (x <= max_xi) : (x += 1) {
-            const p = math.Vec3{ @as(f32, @floatFromInt(x)) + 0.5, @as(f32, @floatFromInt(y)) + 0.5, 0 };
+        while (x <= max_xi) {
+            const remaining = max_xi - x + 1;
 
-            const w0 = ((v1[0] - p[0]) * (v2[1] - p[1]) - (v1[1] - p[1]) * (v2[0] - p[0])) * inv_area;
-            const w1 = ((v2[0] - p[0]) * (v0[1] - p[1]) - (v2[1] - p[1]) * (v0[0] - p[0])) * inv_area;
-            const w2 = 1.0 - w0 - w1;
+            if (remaining >= simd_width) {
+                const m0 = w0_v >= zero_v;
+                const m1 = w1_v >= zero_v;
+                const m2 = w2_v >= zero_v;
+                const mask = m0 & m1 & m2;
 
-            if (w0 >= 0 and w1 >= 0 and w2 >= 0) {
-                const z = w0 * v0[2] + w1 * v1[2] + w2 * v2[2];
-                const idx = @as(usize, @intCast(y)) * c.stride + @as(usize, @intCast(x));
+                if (@reduce(.Or, mask)) {
+                    const z_v = w0_v * v0z_v + w1_v * v1z_v + w2_v * v2z_v;
+                    const base_idx = @as(usize, @intCast(y)) * c.stride + @as(usize, @intCast(x));
 
-                if (z < c.depth_buffer[idx]) {
-                    c.depth_buffer[idx] = z;
-                    colors.blendColor(&c.pixels[idx], color);
+                    inline for (0..simd_width) |k| {
+                        if (mask[k]) {
+                            const idx = base_idx + k;
+                            if (z_v[k] < c.depth_buffer[idx]) {
+                                c.depth_buffer[idx] = z_v[k];
+                                if (is_opaque) {
+                                    c.pixels[idx] = color;
+                                } else colors.blendColor(&c.pixels[idx], color);
+                            }
+                        }
+                    }
                 }
+                w0_v += w0_step_v;
+                w1_v += w1_step_v;
+                w2_v += w2_step_v;
+                x += simd_width;
+            } else {
+                inline for (0..simd_width) |k| {
+                    if (k < remaining) {
+                        const w0_s = w0_v[k];
+                        const w1_s = w1_v[k];
+                        const w2_s = w2_v[k];
+
+                        if (w0_s >= 0 and w1_s >= 0 and w2_s >= 0) {
+                            const z = w0_s * v0[2] + w1_s * v1[2] + w2_s * v2[2];
+                            const idx = @as(usize, @intCast(y)) * c.stride + @as(usize, @intCast(x)) + k;
+                            if (z < c.depth_buffer[idx]) {
+                                c.depth_buffer[idx] = z;
+                                if (is_opaque) {
+                                    c.pixels[idx] = color;
+                                } else colors.blendColor(&c.pixels[idx], color);
+                            }
+                        }
+                    }
+                }
+                break;
             }
         }
+        w0_row += w0_dy;
+        w1_row += w1_dy;
+        w2_row += w2_dy;
+    }
+}
+
+pub fn drawMesh(c: *Canvas, m: mesh.Mesh, mvp: math.Mat4) void {
+    const w_f = @as(f32, @floatFromInt(c.width));
+    const h_f = @as(f32, @floatFromInt(c.height));
+
+    const allocator = c.allocator;
+    const transformed = allocator.alloc(math.Vec4, m.vertices.len) catch return;
+    defer allocator.free(transformed);
+
+    for (m.vertices, 0..) |v, i| {
+        const v4 = math.Vec4{ v.pos[0], v.pos[1], v.pos[2], 1.0 };
+        transformed[i] = math.Mat4.mulVec(mvp, v4);
+    }
+
+    var i: usize = 0;
+    while (i < m.indices.len) : (i += 3) {
+        const idx0 = m.indices[i];
+        const idx1 = m.indices[i + 1];
+        const idx2 = m.indices[i + 2];
+
+        const v0c = transformed[idx0];
+        const v1c = transformed[idx1];
+        const v2c = transformed[idx2];
+
+        if (v0c[3] < 0.1 or v1c[3] < 0.1 or v2c[3] < 0.1) continue;
+
+        const v0_ndc = v0c / @as(math.Vec4, @splat(v0c[3]));
+        const v1_ndc = v1c / @as(math.Vec4, @splat(v1c[3]));
+        const v2_ndc = v2c / @as(math.Vec4, @splat(v2c[3]));
+
+        const v0_screen = math.Vec3{ (v0_ndc[0] + 1.0) * 0.5 * w_f, (1.0 - v0_ndc[1]) * 0.5 * h_f, v0_ndc[2] };
+        const v1_screen = math.Vec3{ (v1_ndc[0] + 1.0) * 0.5 * w_f, (1.0 - v1_ndc[1]) * 0.5 * h_f, v1_ndc[2] };
+        const v2_screen = math.Vec3{ (v2_ndc[0] + 1.0) * 0.5 * w_f, (1.0 - v2_ndc[1]) * 0.5 * h_f, v2_ndc[2] };
+
+        const color = m.vertices[idx0].color;
+
+        drawTriangle3D(c, v0_screen, v1_screen, v2_screen, color);
     }
 }
 
@@ -421,9 +535,7 @@ pub fn drawCircle(c: *Canvas, x: i32, y: i32, r: i32, aa: i32, color: Color) voi
 
             if (count > 0) {
                 var final_alpha: u8 = base_alpha;
-                if (aa_sq > 0) {
-                    final_alpha = @intCast((@as(usize, base_alpha) * count) / aa_sq);
-                }
+                if (aa_sq > 0) final_alpha = @intCast((@as(usize, base_alpha) * count) / aa_sq);
 
                 if (final_alpha > 0) {
                     const t: Color = (color & 0x00FFFFFF) | (@as(u32, final_alpha) << 24);
@@ -445,9 +557,7 @@ pub fn drawLine(c: *Canvas, x1: i32, y1: i32, x2: i32, y2: i32, thickness: u32, 
 
     if (dx == 0 and dy == 0) {
         if (thickness <= 1) {
-            if (inRenderArea(c, x1_mut, y1_mut)) {
-                colors.blendColor(getPixelPtr(c, @intCast(x1_mut), @intCast(y1_mut)), color);
-            }
+            if (inRenderArea(c, x1_mut, y1_mut)) colors.blendColor(getPixelPtr(c, @intCast(x1_mut), @intCast(y1_mut)), color);
         } else drawRect(c, x1_mut - t_offset, y1_mut - t_offset, thickness, thickness, color);
         return;
     }
@@ -465,16 +575,12 @@ pub fn drawLine(c: *Canvas, x1: i32, y1: i32, x2: i32, y2: i32, thickness: u32, 
                 const x_i: i32 = @intCast(x);
                 const y: i32 = y1_mut + @as(i32, @intCast(@divTrunc(@as(i64, dy) * (x_i - x1_mut), dx)));
                 if (thickness <= 1) {
-                    if (inRenderArea(c, x_i, y)) {
-                        colors.blendColor(getPixelPtr(c, x, @intCast(y)), color);
-                    }
+                    if (inRenderArea(c, x_i, y)) colors.blendColor(getPixelPtr(c, x, @intCast(y)), color);
                 } else {
                     var sy = y - t_offset;
                     const ey = sy + @as(i32, @intCast(thickness));
                     while (sy < ey) : (sy += 1) {
-                        if (inRenderArea(c, x_i, sy)) {
-                            colors.blendColor(getPixelPtr(c, x, @intCast(sy)), color);
-                        }
+                        if (inRenderArea(c, x_i, sy)) colors.blendColor(getPixelPtr(c, x, @intCast(sy)), color);
                     }
                 }
             }
@@ -500,9 +606,7 @@ pub fn drawLine(c: *Canvas, x1: i32, y1: i32, x2: i32, y2: i32, thickness: u32, 
                     var sx = x - t_offset;
                     const ex = sx + @as(i32, @intCast(thickness));
                     while (sx < ex) : (sx += 1) {
-                        if (inRenderArea(c, sx, y_i)) {
-                            colors.blendColor(getPixelPtr(c, @intCast(sx), y), color);
-                        }
+                        if (inRenderArea(c, sx, y_i)) colors.blendColor(getPixelPtr(c, @intCast(sx), y), color);
                     }
                 }
             }
