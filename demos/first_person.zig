@@ -25,6 +25,8 @@ const PITCH_PIXELS = 140.0;
 const BOB_FREQ = 10.0;
 const BOB_VIEW_Y = 3.0;
 
+const HIT_MARK_TIME = 0.12;
+
 const MINIMAP_SCALE = 8;
 const MINIMAP_OFFSET_X = 10;
 const MINIMAP_OFFSET_Y = 10;
@@ -59,6 +61,7 @@ const UserInput = struct {
     escape: bool,
     mouse_dx: f32,
     mouse_dy: f32,
+    fire: bool,
 };
 
 const State = struct {
@@ -67,6 +70,8 @@ const State = struct {
     plane: Vec2,
     walk_timer: f32,
     pitch: f32,
+    hit_timer: f32,
+    last_hit_pos: Vec2,
 };
 
 fn length(v: Vec2) f32 {
@@ -187,6 +192,8 @@ fn init() State {
         .plane = .{ 0.0, 0.66 },
         .walk_timer = 0.0,
         .pitch = 0.0,
+        .hit_timer = 0.0,
+        .last_hit_pos = .{ 0.0, 0.0 },
     };
 }
 
@@ -211,6 +218,16 @@ fn drawMinimap(canvas: *Canvas, state: *const State) void {
     const py = MINIMAP_OFFSET_Y + @as(i32, @intFromFloat(state.pos[1] * scale_f));
 
     render.drawCircle(canvas, px, py, 2, 2, render.colors.WHITE);
+
+    const dir_end_x = px + @as(i32, @intFromFloat(state.dir[0] * scale_f * 1.5));
+    const dir_end_y = py + @as(i32, @intFromFloat(state.dir[1] * scale_f * 1.5));
+    render.drawLine(canvas, px, py, dir_end_x, dir_end_y, 1, render.colors.WHITE);
+
+    if (state.hit_timer > 0.0) {
+        const hx = MINIMAP_OFFSET_X + @as(i32, @intFromFloat(state.last_hit_pos[0] * scale_f));
+        const hy = MINIMAP_OFFSET_Y + @as(i32, @intFromFloat(state.last_hit_pos[1] * scale_f));
+        render.drawCircle(canvas, hx, hy, 2, 1, render.colors.YELLOW);
+    }
 }
 
 fn raycastColumn(canvas: *Canvas, state: *const State, x: i32, center_y: f32) void {
@@ -388,6 +405,18 @@ fn update(state: *State, dt: f32, in: UserInput) void {
     } else {
         if (state.walk_timer > 0) state.walk_timer = 0;
     }
+
+    if (state.hit_timer > 0.0) {
+        state.hit_timer = @max(0.0, state.hit_timer - dt);
+    }
+
+    if (in.fire) {
+        const hit = castRay(state.pos, state.dir);
+        if (hit.hit) {
+            state.hit_timer = HIT_MARK_TIME;
+            state.last_hit_pos = hit.pos;
+        }
+    }
 }
 
 pub fn main() !void {
@@ -409,6 +438,7 @@ pub fn main() !void {
     var timer = try std.time.Timer.start();
     var last_time: u64 = 0;
     var last_mouse_pos = input.getMousePosition();
+    var prev_mouse_down = false;
 
     while (!quit) {
         quit = window.pollEvents();
@@ -424,12 +454,17 @@ pub fn main() !void {
         const dt = @as(f32, @floatFromInt(dt_ns)) / @as(f32, @floatFromInt(std.time.ns_per_s));
         const clamped_dt = if (dt > MAX_DT) MAX_DT else dt;
 
+        const mouse_down = input.isMouseDown(.Left);
+        const fire = mouse_down and !prev_mouse_down;
+        prev_mouse_down = mouse_down;
+
         const user_input = UserInput{
             .forward = input.isKeyDown(.Up) or input.isKeyDown(.W),
             .backward = input.isKeyDown(.Down) or input.isKeyDown(.S),
             .left = input.isKeyDown(.Left) or input.isKeyDown(.A),
             .right = input.isKeyDown(.Right) or input.isKeyDown(.D),
             .escape = input.isKeyDown(.Escape),
+            .fire = fire,
             .mouse_dx = mouse_dx,
             .mouse_dy = mouse_dy,
         };
