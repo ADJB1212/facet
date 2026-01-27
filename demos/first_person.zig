@@ -81,6 +81,18 @@ fn mapCell(x: i32, y: i32) u8 {
     return if (mapIndex(x, y)) |idx| MAPDATA[idx] else 1;
 }
 
+fn isBorderCell(x: i32, y: i32) bool {
+    return x == 0 or y == 0 or x == MAP_SIZE - 1 or y == MAP_SIZE - 1;
+}
+
+fn raycastCell(x: i32, y: i32) u8 {
+    if (mapIndex(x, y)) |idx| {
+        if (isBorderCell(x, y)) return MAPDATA[idx];
+        return 0;
+    }
+    return 1;
+}
+
 fn wallColor(id: u8) u32 {
     return switch (id) {
         1 => render.colors.RED,
@@ -88,6 +100,76 @@ fn wallColor(id: u8) u32 {
         3 => render.colors.BLUE,
         4 => render.colors.MAGENTA,
         else => render.colors.WHITE,
+    };
+}
+
+const RayHit = struct {
+    hit: bool,
+    pos: Vec2,
+    cell: Vec2i,
+    val: u8,
+    dist: f32,
+    side: i32,
+};
+
+fn castRay(pos: Vec2, dir: Vec2) RayHit {
+    var ipos = Vec2i{ @intFromFloat(pos[0]), @intFromFloat(pos[1]) };
+
+    const abs_dir = @abs(dir);
+    const deltadist = Vec2{
+        if (abs_dir[0] < 1e-20) 1e30 else @abs(1.0 / dir[0]),
+        if (abs_dir[1] < 1e-20) 1e30 else @abs(1.0 / dir[1]),
+    };
+
+    var sidedist: Vec2 = undefined;
+    var step: Vec2i = undefined;
+
+    if (dir[0] < 0) {
+        step[0] = -1;
+        sidedist[0] = (pos[0] - @as(f32, @floatFromInt(ipos[0]))) * deltadist[0];
+    } else {
+        step[0] = 1;
+        sidedist[0] = (@as(f32, @floatFromInt(ipos[0] + 1)) - pos[0]) * deltadist[0];
+    }
+
+    if (dir[1] < 0) {
+        step[1] = -1;
+        sidedist[1] = (pos[1] - @as(f32, @floatFromInt(ipos[1]))) * deltadist[1];
+    } else {
+        step[1] = 1;
+        sidedist[1] = (@as(f32, @floatFromInt(ipos[1] + 1)) - pos[1]) * deltadist[1];
+    }
+
+    var hit = false;
+    var side: i32 = 0;
+    var val: u8 = 0;
+
+    while (!hit) {
+        if (sidedist[0] < sidedist[1]) {
+            sidedist[0] += deltadist[0];
+            ipos[0] += step[0];
+            side = 0;
+        } else {
+            sidedist[1] += deltadist[1];
+            ipos[1] += step[1];
+            side = 1;
+        }
+
+        val = raycastCell(ipos[0], ipos[1]);
+        if (val > 0) hit = true;
+    }
+
+    var dperp: f32 = if (side == 0) (sidedist[0] - deltadist[0]) else (sidedist[1] - deltadist[1]);
+    if (dperp < MIN_WALL_DIST) dperp = MIN_WALL_DIST;
+
+    const hit_pos = pos + dir * @as(Vec2, @splat(dperp));
+    return .{
+        .hit = true,
+        .pos = hit_pos,
+        .cell = ipos,
+        .val = val,
+        .dist = dperp,
+        .side = side,
     };
 }
 
