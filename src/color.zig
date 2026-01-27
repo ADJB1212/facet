@@ -6,10 +6,13 @@ pub const RED = 0xFFFF0000;
 pub const GREEN = 0xFF00FF00;
 pub const BLUE = 0xFF0000FF;
 pub const BLACK = 0xFF000000;
-pub const WHITE = BLUE | GREEN | RED;
-pub const YELLOW = RED | GREEN;
-pub const CYAN = GREEN | BLUE;
-pub const MAGENTA = RED | BLUE;
+pub const WHITE = 0xFFFFFFFF;
+pub const YELLOW = 0xFFFFFF00;
+pub const CYAN = 0xFF00FFFF;
+pub const MAGENTA = 0xFFFF00FF;
+pub const GRAY = 0xFF808080;
+pub const ORANGE = 0xFFFFA500;
+pub const PURLE = 0xFF800080;
 
 pub inline fn red(c: Color) u8 {
     return @intCast(c & 0xFF);
@@ -26,6 +29,10 @@ pub inline fn alpha(c: Color) u8 {
 
 pub inline fn rgba(rr: u8, gg: u8, bb: u8, aa: u8) Color {
     return @as(u32, rr) | (@as(u32, gg) << 8) | (@as(u32, bb) << 16) | (@as(u32, aa) << 24);
+}
+
+pub inline fn rgb(rr: u8, gg: u8, bb: u8) Color {
+    return @as(u32, rr) | (@as(u32, gg) << 8) | (@as(u32, bb) << 16) | (@as(u32, 0xFF) << 24);
 }
 
 inline fn blend8(dst: u8, src: u8, src_a: u8) u8 {
