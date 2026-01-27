@@ -292,16 +292,14 @@ fn update(state: *State, dt: f32, in: UserInput) void {
     }
 }
 
-pub fn main(min_init: std.process.Init.Minimal) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(main_init: std.process.Init) !void {
+    const arena: std.mem.Allocator = main_init.arena.allocator();
 
-    var threaded: std.Io.Threaded = .init(allocator, .{ .environ = min_init.environ });
+    var threaded: std.Io.Threaded = .init(arena, .{ .environ = main_init.minimal.environ });
     defer threaded.deinit();
     const io = threaded.io();
 
-    try render.init(allocator, SCREEN_WIDTH, SCREEN_HEIGHT);
+    try render.init(arena, SCREEN_WIDTH, SCREEN_HEIGHT);
     defer render.deinit();
 
     const canvas = render.getCanvas();

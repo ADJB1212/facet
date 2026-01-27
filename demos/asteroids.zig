@@ -610,12 +610,10 @@ fn resetStage() !void {
     };
 }
 
-pub fn main(min_init: std.process.Init.Minimal) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(main_init: std.process.Init) !void {
+    const arena: std.mem.Allocator = main_init.arena.allocator();
 
-    var threaded: std.Io.Threaded = .init(allocator, .{ .environ = min_init.environ });
+    var threaded: std.Io.Threaded = .init(arena, .{ .environ = main_init.minimal.environ });
     defer threaded.deinit();
     const io = threaded.io();
 
@@ -626,14 +624,14 @@ pub fn main(min_init: std.process.Init.Minimal) !void {
 
     const rand = prng.random();
 
-    try render.init(allocator, @as(usize, @intFromFloat(SIZE[0])), @as(usize, @intFromFloat(SIZE[1])));
+    try render.init(arena, @as(usize, @intFromFloat(SIZE[0])), @as(usize, @intFromFloat(SIZE[1])));
     defer render.deinit();
 
     canvas = render.getCanvas();
 
     window.init();
     var fps: render.FpsManager = try .init(io);
-    fps.setTargetFPS(120.0);
+    fps.setTargetFPS(60);
 
     var quit = false;
     var timer = try std.time.Timer.start();
@@ -648,13 +646,13 @@ pub fn main(min_init: std.process.Init.Minimal) !void {
         .aliens = .{},
         .rand = rand,
     };
-    defer state.asteroids.deinit(allocator);
-    defer state.asteroids_queue.deinit(allocator);
-    defer state.particles.deinit(allocator);
-    defer state.projectiles.deinit(allocator);
-    defer state.aliens.deinit(allocator);
+    defer state.asteroids.deinit(arena);
+    defer state.asteroids_queue.deinit(arena);
+    defer state.particles.deinit(arena);
+    defer state.projectiles.deinit(arena);
+    defer state.aliens.deinit(arena);
 
-    try resetGame(allocator);
+    try resetGame(arena);
 
     while (!quit) {
         quit = window.pollEvents();
@@ -670,15 +668,14 @@ pub fn main(min_init: std.process.Init.Minimal) !void {
         state.delta = clamped_dt;
         state.now += state.delta;
 
-        try update(allocator);
+        try update(arena);
 
         render.fillCanvas(canvas, render.colors.BLACK);
 
-        try render_frame(allocator);
-
+        try render_frame(arena);
+        try fps.drawFPS(canvas, @as(i32, @intFromFloat(SIZE[0])) - 80, 0, render.colors.WHITE);
         window.present();
 
-        try fps.drawFPS(canvas, @as(i32, @intFromFloat(SIZE[0])) - 80, 0, render.colors.WHITE);
         try fps.waitForNextFrame();
     }
 }
