@@ -5,5 +5,6 @@ pub const MouseButton = mouse.MouseButton;
 pub const MousePosition = mouse.MousePosition;
 pub const isMouseDown = mouse.isMouseDown;
 pub const getLastClickPosition = mouse.getLastClickPosition;
+pub const getMousePosition = mouse.getMousePosition;
 
 pub const isKeyDown = keyboard.isKeyDown;
