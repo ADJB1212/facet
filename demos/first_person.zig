@@ -17,6 +17,10 @@ const MAX_DT = 0.1;
 
 const MOVE_SPEED = 3.0;
 const ROT_SPEED = 3.0;
+const MOUSE_SENS = 0.0025;
+const PITCH_SENS = 0.0022;
+const MAX_PITCH = std.math.degreesToRadians(45.0);
+const PITCH_PIXELS = 140.0;
 
 const BOB_FREQ = 10.0;
 const BOB_VIEW_Y = 3.0;
@@ -53,6 +57,8 @@ const UserInput = struct {
     left: bool,
     right: bool,
     escape: bool,
+    mouse_dx: f32,
+    mouse_dy: f32,
 };
 
 const State = struct {
@@ -60,6 +66,7 @@ const State = struct {
     dir: Vec2,
     plane: Vec2,
     walk_timer: f32,
+    pitch: f32,
 };
 
 fn length(v: Vec2) f32 {
@@ -179,6 +186,7 @@ fn init() State {
         .dir = normalize(.{ -1.0, 0.1 }),
         .plane = .{ 0.0, 0.66 },
         .walk_timer = 0.0,
+        .pitch = 0.0,
     };
 }
 
@@ -349,6 +357,14 @@ fn update(state: *State, dt: f32, in: UserInput) void {
     if (in.left) rotate(state, rotspeed);
     if (in.right) rotate(state, -rotspeed);
 
+    if (in.mouse_dx != 0.0) {
+        rotate(state, -in.mouse_dx * MOUSE_SENS);
+    }
+
+    if (in.mouse_dy != 0.0) {
+        state.pitch = std.math.clamp(state.pitch - in.mouse_dy * PITCH_SENS, -MAX_PITCH, MAX_PITCH);
+    }
+
     var move_dir: Vec2 = .{ 0, 0 };
     var moved = false;
 
@@ -392,9 +408,15 @@ pub fn main() !void {
     var quit = false;
     var timer = try std.time.Timer.start();
     var last_time: u64 = 0;
+    var last_mouse_pos = input.getMousePosition();
 
     while (!quit) {
         quit = window.pollEvents();
+
+        const mouse_pos = input.getMousePosition();
+        const mouse_dx = mouse_pos.x - last_mouse_pos.x;
+        const mouse_dy = mouse_pos.y - last_mouse_pos.y;
+        last_mouse_pos = mouse_pos;
 
         const now = timer.read();
         const dt_ns = now - last_time;
@@ -408,6 +430,8 @@ pub fn main() !void {
             .left = input.isKeyDown(.Left) or input.isKeyDown(.A),
             .right = input.isKeyDown(.Right) or input.isKeyDown(.D),
             .escape = input.isKeyDown(.Escape),
+            .mouse_dx = mouse_dx,
+            .mouse_dy = mouse_dy,
         };
 
         update(&state, clamped_dt, user_input);
