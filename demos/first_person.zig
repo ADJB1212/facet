@@ -536,7 +536,7 @@ pub fn main() !void {
         render_frame(canvas, &state);
         window.present();
 
-        fps.drawFPS(canvas, SCREEN_WIDTH - 80, 0, render.colors.WHITE);
+        fps.drawFPS(canvas, SCREEN_WIDTH - 70, 5, render.colors.WHITE);
         fps.waitForNextFrame();
     }
 }
