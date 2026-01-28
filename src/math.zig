@@ -5,7 +5,7 @@ pub const Vec3 = @Vector(3, f32);
 pub const Vec4 = @Vector(4, f32);
 
 pub const Mat4 = struct {
-    data: [4][4]f32,
+    data: [4]Vec4,
 
     pub fn identity() Mat4 {
         return .{
@@ -19,27 +19,22 @@ pub const Mat4 = struct {
     }
 
     pub fn mul(a: Mat4, b: Mat4) Mat4 {
-        var res = Mat4.identity();
-        for (0..4) |row| {
-            for (0..4) |col| {
-                var sum: f32 = 0;
-                for (0..4) |k| {
-                    sum += a.data[row][k] * b.data[k][col];
-                }
-                res.data[row][col] = sum;
+        var res: Mat4 = undefined;
+        inline for (0..4) |row| {
+            var acc: Vec4 = @splat(0);
+            inline for (0..4) |k| {
+                const scalar = a.data[row][k];
+                acc += @as(Vec4, @splat(scalar)) * b.data[k];
             }
+            res.data[row] = acc;
         }
         return res;
     }
 
     pub fn mulVec(m: Mat4, v: Vec4) Vec4 {
         var res: Vec4 = undefined;
-         inline for (0..4) |row| {
-            var sum: f32 = 0;
-           inline for (0..4) |col| {
-                sum += m.data[row][col] * v[col];
-            }
-            res[row] = sum;
+        inline for (0..4) |row| {
+            res[row] = @reduce(.Add, m.data[row] * v);
         }
         return res;
     }
@@ -95,7 +90,7 @@ pub const Mat4 = struct {
 
     pub fn perspective(fov: f32, aspect: f32, near: f32, far: f32) Mat4 {
         const tan_half_fov = @tan(fov / 2.0);
-        var m = Mat4{ .data = [_][4]f32{ .{ 0, 0, 0, 0 }, .{ 0, 0, 0, 0 }, .{ 0, 0, 0, 0 }, .{ 0, 0, 0, 0 } } };
+        var m = Mat4{ .data = .{ @splat(0), @splat(0), @splat(0), @splat(0) } };
 
         m.data[0][0] = 1.0 / (aspect * tan_half_fov);
         m.data[1][1] = 1.0 / tan_half_fov;
@@ -118,8 +113,7 @@ pub inline fn vectorLerp(v1: @Vector(2, i32), v2: @Vector(2, i32), t: f32) @Vect
 }
 
 pub fn dot(a: Vec3, b: Vec3) f32 {
-    const p = a * b;
-    return p[0] + p[1] + p[2];
+    return @reduce(.Add, a * b);
 }
 
 pub fn cross(a: Vec3, b: Vec3) Vec3 {

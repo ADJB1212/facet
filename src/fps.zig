@@ -17,6 +17,11 @@ pub const FpsManager = struct {
     timing_initialized: bool = false,
     io: std.Io,
 
+    fps_text: [64]u8 = undefined,
+    fps_text_len: usize = 0,
+    last_draw_time: i128 = 0,
+    draw_interval_ns: i128 = std.time.ns_per_ms * 500,
+
     pub fn init(io: std.Io) !FpsManager {
         return FpsManager{
             .io = io,
@@ -51,35 +56,33 @@ pub const FpsManager = struct {
 
         if (!self.initialized) {
             self.last_time = now;
-            if (!self.timing_initialized) {
-                self.frame_start_time = now;
-                self.timing_initialized = true;
-            }
+            self.last_draw_time = now;
             self.initialized = true;
-            render.drawText(c, "FPS: --", x, y, 1, color, .left);
+            const slice = std.fmt.bufPrint(&self.fps_text, "FPS: --", .{}) catch self.fps_text[0..0];
+            self.fps_text_len = slice.len;
+            render.drawText(c, self.fps_text[0..self.fps_text_len], x, y, 1, color, .left);
             return;
         }
 
         const frame_time = now - self.last_time;
         self.last_time = now;
 
-        if (self.count < FPS_SAMPLE_COUNT) {
-            self.count += 1;
-        } else {
-            self.total_time -= self.frame_times[self.index];
-        }
+        if (self.count < FPS_SAMPLE_COUNT) self.count += 1 else self.total_time -= self.frame_times[self.index];
 
         self.frame_times[self.index] = frame_time;
         self.total_time += frame_time;
         self.index = (self.index + 1) % FPS_SAMPLE_COUNT;
 
-        const avg_frame_time = @as(f64, @floatFromInt(self.total_time)) / @as(f64, @floatFromInt(self.count));
+        if (now - self.last_draw_time >= self.draw_interval_ns) {
+            const avg_frame_time = @as(f64, @floatFromInt(self.total_time)) / @as(f64, @floatFromInt(self.count));
 
-        const fps = @as(f64, std.time.ns_per_s) / avg_frame_time;
+            const fps = @as(u32, @intFromFloat(@as(f64, std.time.ns_per_s) / avg_frame_time));
+            const slice = std.fmt.bufPrint(&self.fps_text, "FPS: {d}", .{fps}) catch self.fps_text[0..0];
+            self.fps_text_len = slice.len;
 
-        var buf: [64]u8 = undefined;
-        const text = std.fmt.bufPrint(&buf, "FPS: {d:.1}", .{fps}) catch "FPS: ERR";
+            self.last_draw_time = now;
+        }
 
-        render.drawText(c, text, x, y, 1, color, .left);
+        render.drawText(c, self.fps_text[0..self.fps_text_len], x, y, 1, color, .left);
     }
 };

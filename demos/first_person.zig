@@ -538,7 +538,7 @@ pub fn main(main_init: std.process.Init) !void {
         render_frame(canvas, &state);
         window.present();
 
-        try fps.drawFPS(canvas, SCREEN_WIDTH - 80, 0, render.colors.WHITE);
+        try fps.drawFPS(canvas, SCREEN_WIDTH - 70, 5, render.colors.WHITE);
         try fps.waitForNextFrame();
     }
 }
