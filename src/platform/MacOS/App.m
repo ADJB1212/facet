@@ -15,6 +15,8 @@ static bool keys[512] = {0};
 static bool mouse_buttons[3] = {0};
 static float last_click_x = 0.0f;
 static float last_click_y = 0.0f;
+static float mouse_x = 0.0f;
+static float mouse_y = 0.0f;
 
 #pragma mark - SoftwareView
 
@@ -23,6 +25,7 @@ static float last_click_y = 0.0f;
 
 @implementation SoftwareView {
   CGImageRef _image;
+  NSTrackingArea *_trackingArea;
 }
 
 - (BOOL)acceptsFirstResponder {
@@ -41,10 +44,48 @@ static float last_click_y = 0.0f;
   }
 }
 
-- (void)mouseDown:(NSEvent *)event {
+- (void)updateMousePosition:(NSEvent *)event {
   NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];
-  last_click_x = (float)point.x;
-  last_click_y = (float)(self.bounds.size.height - point.y);
+  mouse_x = (float)point.x;
+  mouse_y = (float)(self.bounds.size.height - point.y);
+}
+
+- (void)updateTrackingAreas {
+  if (_trackingArea) {
+    [self removeTrackingArea:_trackingArea];
+    _trackingArea = nil;
+  }
+
+  _trackingArea = [[NSTrackingArea alloc]
+      initWithRect:self.bounds
+           options:NSTrackingMouseMoved | NSTrackingActiveInKeyWindow |
+                   NSTrackingInVisibleRect
+             owner:self
+          userInfo:nil];
+  [self addTrackingArea:_trackingArea];
+  [super updateTrackingAreas];
+}
+
+- (void)mouseMoved:(NSEvent *)event {
+  [self updateMousePosition:event];
+}
+
+- (void)mouseDragged:(NSEvent *)event {
+  [self updateMousePosition:event];
+}
+
+- (void)rightMouseDragged:(NSEvent *)event {
+  [self updateMousePosition:event];
+}
+
+- (void)otherMouseDragged:(NSEvent *)event {
+  [self updateMousePosition:event];
+}
+
+- (void)mouseDown:(NSEvent *)event {
+  [self updateMousePosition:event];
+  last_click_x = mouse_x;
+  last_click_y = mouse_y;
   mouse_buttons[0] = true;
 }
 
@@ -53,9 +94,9 @@ static float last_click_y = 0.0f;
 }
 
 - (void)rightMouseDown:(NSEvent *)event {
-  NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];
-  last_click_x = (float)point.x;
-  last_click_y = (float)(self.bounds.size.height - point.y);
+  [self updateMousePosition:event];
+  last_click_x = mouse_x;
+  last_click_y = mouse_y;
   mouse_buttons[1] = true;
 }
 
@@ -64,9 +105,9 @@ static float last_click_y = 0.0f;
 }
 
 - (void)otherMouseDown:(NSEvent *)event {
-  NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];
-  last_click_x = (float)point.x;
-  last_click_y = (float)(self.bounds.size.height - point.y);
+  [self updateMousePosition:event];
+  last_click_x = mouse_x;
+  last_click_y = mouse_y;
   if (event.buttonNumber == 2) {
     mouse_buttons[2] = true;
   }
@@ -79,6 +120,10 @@ static float last_click_y = 0.0f;
 }
 
 - (void)dealloc {
+  if (_trackingArea) {
+    [self removeTrackingArea:_trackingArea];
+    _trackingArea = nil;
+  }
   if (_image) CGImageRelease(_image);
 }
 
@@ -151,6 +196,7 @@ static float last_click_y = 0.0f;
 
   self.view = [[SoftwareView alloc] initWithFrame:rect];
   self.window.contentView = self.view;
+  [self.window setAcceptsMouseMovedEvents:YES];
 
   [self.window center];
   [self.window setTitle:@"Zig Software Renderer"];
@@ -244,5 +290,14 @@ void macos_get_last_click_position(float *x, float *y) {
   }
   if (y) {
     *y = last_click_y;
+  }
+}
+
+void macos_get_mouse_position(float *x, float *y) {
+  if (x) {
+    *x = mouse_x;
+  }
+  if (y) {
+    *y = mouse_y;
   }
 }

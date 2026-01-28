@@ -19,6 +19,8 @@ static bool keys[512] = {0};
 static bool mouse_buttons[3] = {0};
 static float last_click_x = 0.0f;
 static float last_click_y = 0.0f;
+static float mouse_x = 0.0f;
+static float mouse_y = 0.0f;
 static Atom wm_delete_window;
 static XImage *ximage = NULL;
 static GC gc;
@@ -45,7 +47,7 @@ void linux_x11_init_app(void) {
 
   XSelectInput(display, window,
                ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask |
-                   ButtonReleaseMask | StructureNotifyMask);
+                   ButtonReleaseMask | StructureNotifyMask | PointerMotionMask);
 
   XStoreName(display, window, "Zig Facet App");
 
@@ -95,14 +97,19 @@ bool linux_x11_poll_events(void) {
       if (event.xbutton.button >= 1 && event.xbutton.button <= 3) {
         mouse_buttons[event.xbutton.button - 1] = true;
         last_click_x = (float)event.xbutton.x;
-
         last_click_y = (float)event.xbutton.y;
+        mouse_x = last_click_x;
+        mouse_y = last_click_y;
       }
       break;
     case ButtonRelease:
       if (event.xbutton.button >= 1 && event.xbutton.button <= 3) {
         mouse_buttons[event.xbutton.button - 1] = false;
       }
+      break;
+    case MotionNotify:
+      mouse_x = (float)event.xmotion.x;
+      mouse_y = (float)event.xmotion.y;
       break;
     case ConfigureNotify:
 
@@ -158,4 +165,11 @@ void linux_x11_get_last_click_position(float *x, float *y) {
     *x = last_click_x;
   if (y)
     *y = last_click_y;
+}
+
+void linux_x11_get_mouse_position(float *x, float *y) {
+  if (x)
+    *x = mouse_x;
+  if (y)
+    *y = mouse_y;
 }

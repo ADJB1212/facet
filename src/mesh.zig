@@ -3,6 +3,7 @@ const math = @import("math");
 const colors = @import("color.zig");
 
 const Vec3 = math.Vec3;
+const Vec2 = math.Vec2;
 const Color = colors.Color;
 
 pub const Vertex = struct {
@@ -433,4 +434,164 @@ pub fn createPyramid(allocator: std.mem.Allocator, base_size: f32, height: f32, 
         .indices = indices,
         .allocator = allocator,
     };
+}
+
+pub const ObjModel = struct {
+    positions: std.ArrayListUnmanaged(Vec3),
+    tex_coords: std.ArrayListUnmanaged(Vec2),
+    normals: std.ArrayListUnmanaged(Vec3),
+    faces: std.ArrayListUnmanaged(Face),
+    allocator: std.mem.Allocator,
+
+    pub const Face = struct {
+        v: [3]VertexIndex,
+    };
+
+    pub const VertexIndex = struct {
+        p_idx: u32,
+        t_idx: ?u32,
+        n_idx: ?u32,
+    };
+
+    pub fn init(allocator: std.mem.Allocator) ObjModel {
+        return .{
+            .positions = .{},
+            .tex_coords = .{},
+            .normals = .{},
+            .faces = .{},
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *ObjModel) void {
+        self.positions.deinit(self.allocator);
+        self.tex_coords.deinit(self.allocator);
+        self.normals.deinit(self.allocator);
+        self.faces.deinit(self.allocator);
+    }
+
+    pub fn toMesh(self: ObjModel, allocator: std.mem.Allocator, color: Color) !Mesh {
+        const num_vertices = self.positions.items.len;
+        const vertices = try allocator.alloc(Vertex, num_vertices);
+        errdefer allocator.free(vertices);
+
+        for (self.positions.items, 0..) |pos, i| {
+            vertices[i] = .{ .pos = pos, .color = color };
+        }
+
+        const num_indices = self.faces.items.len * 3;
+        const indices = try allocator.alloc(u32, num_indices);
+        errdefer allocator.free(indices);
+
+        var idx: usize = 0;
+        for (self.faces.items) |face| {
+            indices[idx] = face.v[0].p_idx;
+            idx += 1;
+            indices[idx] = face.v[1].p_idx;
+            idx += 1;
+            indices[idx] = face.v[2].p_idx;
+            idx += 1;
+        }
+
+        return Mesh{
+            .vertices = vertices,
+            .indices = indices,
+            .allocator = allocator,
+        };
+    }
+};
+
+fn parseObj(allocator: std.mem.Allocator, file_content: []const u8) !ObjModel {
+    var model = ObjModel.init(allocator);
+    errdefer model.deinit();
+
+    var lines = std.mem.tokenizeAny(u8, file_content, "\n\r");
+    while (lines.next()) |line| {
+        if (std.mem.startsWith(u8, std.mem.trimLeft(u8, line, " "), "#")) continue;
+
+        var tokens = std.mem.tokenizeAny(u8, line, " \t");
+        const cmd = tokens.next() orelse continue;
+
+        if (std.mem.eql(u8, cmd, "v")) {
+            const x = try parseFloat(tokens.next());
+            const y = try parseFloat(tokens.next());
+            const z = try parseFloat(tokens.next());
+            try model.positions.append(allocator, .{ x, y, z });
+        } else if (std.mem.eql(u8, cmd, "vt")) {
+            const u = try parseFloat(tokens.next());
+            const v = try parseFloat(tokens.next());
+            try model.tex_coords.append(allocator, .{ u, v });
+        } else if (std.mem.eql(u8, cmd, "vn")) {
+            const x = try parseFloat(tokens.next());
+            const y = try parseFloat(tokens.next());
+            const z = try parseFloat(tokens.next());
+            try model.normals.append(allocator, .{ x, y, z });
+        } else if (std.mem.eql(u8, cmd, "f")) {
+            var face_indices = std.ArrayListUnmanaged(ObjModel.VertexIndex){};
+            defer face_indices.deinit(allocator);
+
+            while (tokens.next()) |token| {
+                const idx = try parseFaceIndex(token, model.positions.items.len, model.tex_coords.items.len, model.normals.items.len);
+                try face_indices.append(allocator, idx);
+            }
+
+            if (face_indices.items.len >= 3) {
+                const v0 = face_indices.items[0];
+                var i: usize = 1;
+                while (i + 1 < face_indices.items.len) : (i += 1) {
+                    const v1 = face_indices.items[i];
+                    const v2 = face_indices.items[i + 1];
+                    try model.faces.append(allocator, .{ .v = .{ v0, v1, v2 } });
+                }
+            }
+        }
+    }
+    return model;
+}
+
+pub fn loadObjFromFile(allocator: std.mem.Allocator, path: []const u8) !ObjModel {
+    const file = try std.fs.cwd().openFile(path, .{});
+    defer file.close();
+
+    const content = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    defer allocator.free(content);
+
+    return parseObj(allocator, content);
+}
+
+fn parseFloat(str: ?[]const u8) !f32 {
+    const s = str orelse return error.InvalidFormat;
+    return std.fmt.parseFloat(f32, s);
+}
+
+fn parseFaceIndex(token: []const u8, num_pos: usize, num_tex: usize, num_norm: usize) !ObjModel.VertexIndex {
+    var iter = std.mem.splitScalar(u8, token, '/');
+    const p_str = iter.next();
+    const t_str = iter.next();
+    const n_str = iter.next();
+
+    const p_idx = try parseIndex(p_str, num_pos) orelse return error.InvalidFaceIndex;
+    const t_idx = try parseIndex(t_str, num_tex);
+    const n_idx = try parseIndex(n_str, num_norm);
+
+    return ObjModel.VertexIndex{
+        .p_idx = p_idx,
+        .t_idx = t_idx,
+        .n_idx = n_idx,
+    };
+}
+
+fn parseIndex(str: ?[]const u8, count: usize) !?u32 {
+    if (str) |s| {
+        if (s.len == 0) return null;
+        const i = try std.fmt.parseInt(i32, s, 10);
+        if (i > 0) {
+            return @intCast(i - 1);
+        } else if (i < 0) {
+            const idx = @as(i32, @intCast(count)) + i;
+            if (idx < 0) return error.IndexOutOfBounds;
+            return @intCast(idx);
+        } else return error.InvalidIndex;
+    }
+    return null;
 }

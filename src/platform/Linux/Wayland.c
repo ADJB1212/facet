@@ -19,3 +19,10 @@ void linux_wayland_get_last_click_position(float *x, float *y) {
   if (y)
     *y = 0;
 }
+
+void linux_wayland_get_mouse_position(float *x, float *y) {
+  if (x)
+    *x = 0;
+  if (y)
+    *y = 0;
+}
