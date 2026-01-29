@@ -33,7 +33,22 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const colors_lib = b.addModule("colors", .{
+        .root_source_file = b.path("src/color.zig"),
+        .optimize = optimize,
+    });
+
+    const lighting_lib = b.addModule("lighting", .{
+        .root_source_file = b.path("src/lighting.zig"),
+        .optimize = optimize,
+    });
+
     canvas_lib.addImport("math", math_lib);
+    canvas_lib.addImport("colors", colors_lib);
+    canvas_lib.addImport("lighting", lighting_lib);
+    
+    lighting_lib.addImport("math", math_lib);
+    lighting_lib.addImport("colors", colors_lib);
 
     const demos = [_]struct { name: []const u8, root: []const u8, description: []const u8 }{
         .{ .name = "play", .root = "demos/playground.zig", .description = "Run the playground (used for testing new features)" },

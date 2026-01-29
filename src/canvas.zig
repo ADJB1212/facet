@@ -1,5 +1,5 @@
 const std = @import("std");
-pub const colors = @import("color.zig");
+pub const colors = @import("colors");
 pub const mesh = @import("mesh.zig");
 const math = @import("math");
 pub const FpsManager = @import("fps.zig").FpsManager;

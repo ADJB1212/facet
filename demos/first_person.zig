@@ -2,6 +2,8 @@ const std = @import("std");
 const render = @import("renderer");
 const window = @import("window");
 const input = @import("input");
+const math = @import("math");
+const colors = render.colors;
 
 const Canvas = render.Canvas;
 
