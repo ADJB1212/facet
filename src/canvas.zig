@@ -1,6 +1,7 @@
 const std = @import("std");
 pub const colors = @import("colors");
 pub const mesh = @import("mesh.zig");
+pub const lighting = @import("lighting");
 const math = @import("math");
 pub const FpsManager = @import("fps.zig").FpsManager;
 const font8 = @import("default_font.zig").font8x8;
@@ -486,6 +487,56 @@ pub fn drawMesh(c: *Canvas, m: mesh.Mesh, mvp: math.Mat4) void {
         const color = m.vertices[idx0].color;
 
         drawTriangle3D(c, v0_screen, v1_screen, v2_screen, color);
+    }
+}
+
+pub fn drawMeshLit(c: *Canvas, m: mesh.Mesh, model: math.Mat4, view: math.Mat4, projection: math.Mat4, lights: []const lighting.Light, material: lighting.Material, ambient: math.Vec3, view_pos: math.Vec3) void {
+    const w_f = @as(f32, @floatFromInt(c.width));
+    const h_f = @as(f32, @floatFromInt(c.height));
+    const mvp = math.Mat4.mul(projection, math.Mat4.mul(view, model));
+
+    const allocator = c.allocator;
+    const transformed = allocator.alloc(math.Vec4, m.vertices.len) catch return;
+    defer allocator.free(transformed);
+
+    for (m.vertices, 0..) |v, i| {
+        const v4 = math.Vec4{ v.pos[0], v.pos[1], v.pos[2], 1.0 };
+        transformed[i] = math.Mat4.mulVec(mvp, v4);
+    }
+
+    var i: usize = 0;
+    while (i < m.indices.len) : (i += 3) {
+        const idx0 = m.indices[i];
+        const idx1 = m.indices[i + 1];
+        const idx2 = m.indices[i + 2];
+
+        const v0c = transformed[idx0];
+        const v1c = transformed[idx1];
+        const v2c = transformed[idx2];
+
+        if (v0c[3] < 0.1 or v1c[3] < 0.1 or v2c[3] < 0.1) continue;
+
+        const v0_ndc = v0c / @as(math.Vec4, @splat(v0c[3]));
+        const v1_ndc = v1c / @as(math.Vec4, @splat(v1c[3]));
+        const v2_ndc = v2c / @as(math.Vec4, @splat(v2c[3]));
+
+        const v0_screen = math.Vec3{ (v0_ndc[0] + 1.0) * 0.5 * w_f, (1.0 - v0_ndc[1]) * 0.5 * h_f, v0_ndc[2] };
+        const v1_screen = math.Vec3{ (v1_ndc[0] + 1.0) * 0.5 * w_f, (1.0 - v1_ndc[1]) * 0.5 * h_f, v1_ndc[2] };
+        const v2_screen = math.Vec3{ (v2_ndc[0] + 1.0) * 0.5 * w_f, (1.0 - v2_ndc[1]) * 0.5 * h_f, v2_ndc[2] };
+
+        const v0_model = math.Mat4.mulVec(model, math.Vec4{ m.vertices[idx0].pos[0], m.vertices[idx0].pos[1], m.vertices[idx0].pos[2], 1.0 });
+        const v0_world = math.Vec3{ v0_model[0], v0_model[1], v0_model[2] };
+
+        const n0 = m.vertices[idx0].normal;
+
+        const n0_x = model.data[0][0] * n0[0] + model.data[0][1] * n0[1] + model.data[0][2] * n0[2];
+        const n0_y = model.data[1][0] * n0[0] + model.data[1][1] * n0[1] + model.data[1][2] * n0[2];
+        const n0_z = model.data[2][0] * n0[0] + model.data[2][1] * n0[1] + model.data[2][2] * n0[2];
+        const n0_world = math.normalize(math.Vec3{ n0_x, n0_y, n0_z });
+
+        const lit_color = lighting.calculateLighting(v0_world, n0_world, view_pos, m.vertices[idx0].color, material, lights, ambient);
+
+        drawTriangle3D(c, v0_screen, v1_screen, v2_screen, lit_color);
     }
 }
 
