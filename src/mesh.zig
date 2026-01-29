@@ -8,6 +8,7 @@ const Color = colors.Color;
 
 pub const Vertex = struct {
     pos: Vec3,
+    normal: Vec3,
     color: Color,
 };
 
@@ -37,35 +38,35 @@ pub fn createCube(allocator: std.mem.Allocator, size: f32) !Mesh {
         colors.MAGENTA,
     };
 
-    vertices[0] = .{ .pos = .{ -h, -h, -h }, .color = face_colors[0] };
-    vertices[1] = .{ .pos = .{ h, -h, -h }, .color = face_colors[0] };
-    vertices[2] = .{ .pos = .{ h, h, -h }, .color = face_colors[0] };
-    vertices[3] = .{ .pos = .{ -h, h, -h }, .color = face_colors[0] };
+    vertices[0] = .{ .pos = .{ -h, -h, -h }, .normal = .{ 0, 0, -1 }, .color = face_colors[0] };
+    vertices[1] = .{ .pos = .{ h, -h, -h }, .normal = .{ 0, 0, -1 }, .color = face_colors[0] };
+    vertices[2] = .{ .pos = .{ h, h, -h }, .normal = .{ 0, 0, -1 }, .color = face_colors[0] };
+    vertices[3] = .{ .pos = .{ -h, h, -h }, .normal = .{ 0, 0, -1 }, .color = face_colors[0] };
 
-    vertices[4] = .{ .pos = .{ h, -h, h }, .color = face_colors[1] };
-    vertices[5] = .{ .pos = .{ -h, -h, h }, .color = face_colors[1] };
-    vertices[6] = .{ .pos = .{ -h, h, h }, .color = face_colors[1] };
-    vertices[7] = .{ .pos = .{ h, h, h }, .color = face_colors[1] };
+    vertices[4] = .{ .pos = .{ h, -h, h }, .normal = .{ 0, 0, 1 }, .color = face_colors[1] };
+    vertices[5] = .{ .pos = .{ -h, -h, h }, .normal = .{ 0, 0, 1 }, .color = face_colors[1] };
+    vertices[6] = .{ .pos = .{ -h, h, h }, .normal = .{ 0, 0, 1 }, .color = face_colors[1] };
+    vertices[7] = .{ .pos = .{ h, h, h }, .normal = .{ 0, 0, 1 }, .color = face_colors[1] };
 
-    vertices[8] = .{ .pos = .{ -h, h, -h }, .color = face_colors[2] };
-    vertices[9] = .{ .pos = .{ h, h, -h }, .color = face_colors[2] };
-    vertices[10] = .{ .pos = .{ h, h, h }, .color = face_colors[2] };
-    vertices[11] = .{ .pos = .{ -h, h, h }, .color = face_colors[2] };
+    vertices[8] = .{ .pos = .{ -h, h, -h }, .normal = .{ 0, 1, 0 }, .color = face_colors[2] };
+    vertices[9] = .{ .pos = .{ h, h, -h }, .normal = .{ 0, 1, 0 }, .color = face_colors[2] };
+    vertices[10] = .{ .pos = .{ h, h, h }, .normal = .{ 0, 1, 0 }, .color = face_colors[2] };
+    vertices[11] = .{ .pos = .{ -h, h, h }, .normal = .{ 0, 1, 0 }, .color = face_colors[2] };
 
-    vertices[12] = .{ .pos = .{ -h, -h, h }, .color = face_colors[3] };
-    vertices[13] = .{ .pos = .{ h, -h, h }, .color = face_colors[3] };
-    vertices[14] = .{ .pos = .{ h, -h, -h }, .color = face_colors[3] };
-    vertices[15] = .{ .pos = .{ -h, -h, -h }, .color = face_colors[3] };
+    vertices[12] = .{ .pos = .{ -h, -h, h }, .normal = .{ 0, -1, 0 }, .color = face_colors[3] };
+    vertices[13] = .{ .pos = .{ h, -h, h }, .normal = .{ 0, -1, 0 }, .color = face_colors[3] };
+    vertices[14] = .{ .pos = .{ h, -h, -h }, .normal = .{ 0, -1, 0 }, .color = face_colors[3] };
+    vertices[15] = .{ .pos = .{ -h, -h, -h }, .normal = .{ 0, -1, 0 }, .color = face_colors[3] };
 
-    vertices[16] = .{ .pos = .{ -h, -h, h }, .color = face_colors[4] };
-    vertices[17] = .{ .pos = .{ -h, -h, -h }, .color = face_colors[4] };
-    vertices[18] = .{ .pos = .{ -h, h, -h }, .color = face_colors[4] };
-    vertices[19] = .{ .pos = .{ -h, h, h }, .color = face_colors[4] };
+    vertices[16] = .{ .pos = .{ -h, -h, h }, .normal = .{ -1, 0, 0 }, .color = face_colors[4] };
+    vertices[17] = .{ .pos = .{ -h, -h, -h }, .normal = .{ -1, 0, 0 }, .color = face_colors[4] };
+    vertices[18] = .{ .pos = .{ -h, h, -h }, .normal = .{ -1, 0, 0 }, .color = face_colors[4] };
+    vertices[19] = .{ .pos = .{ -h, h, h }, .normal = .{ -1, 0, 0 }, .color = face_colors[4] };
 
-    vertices[20] = .{ .pos = .{ h, -h, -h }, .color = face_colors[5] };
-    vertices[21] = .{ .pos = .{ h, -h, h }, .color = face_colors[5] };
-    vertices[22] = .{ .pos = .{ h, h, h }, .color = face_colors[5] };
-    vertices[23] = .{ .pos = .{ h, h, -h }, .color = face_colors[5] };
+    vertices[20] = .{ .pos = .{ h, -h, -h }, .normal = .{ 1, 0, 0 }, .color = face_colors[5] };
+    vertices[21] = .{ .pos = .{ h, -h, h }, .normal = .{ 1, 0, 0 }, .color = face_colors[5] };
+    vertices[22] = .{ .pos = .{ h, h, h }, .normal = .{ 1, 0, 0 }, .color = face_colors[5] };
+    vertices[23] = .{ .pos = .{ h, h, -h }, .normal = .{ 1, 0, 0 }, .color = face_colors[5] };
 
     const idxs = [_]u32{
         0,  2,  1,  0,  3,  2,
@@ -92,10 +93,10 @@ pub fn createPlane(allocator: std.mem.Allocator, width: f32, depth: f32, color: 
     const vertices = try allocator.alloc(Vertex, 4);
     const indices = try allocator.alloc(u32, 6);
 
-    vertices[0] = .{ .pos = .{ -hw, 0, -hd }, .color = color };
-    vertices[1] = .{ .pos = .{ hw, 0, -hd }, .color = color };
-    vertices[2] = .{ .pos = .{ hw, 0, hd }, .color = color };
-    vertices[3] = .{ .pos = .{ -hw, 0, hd }, .color = color };
+    vertices[0] = .{ .pos = .{ -hw, 0, -hd }, .normal = .{ 0, 1, 0 }, .color = color };
+    vertices[1] = .{ .pos = .{ hw, 0, -hd }, .normal = .{ 0, 1, 0 }, .color = color };
+    vertices[2] = .{ .pos = .{ hw, 0, hd }, .normal = .{ 0, 1, 0 }, .color = color };
+    vertices[3] = .{ .pos = .{ -hw, 0, hd }, .normal = .{ 0, 1, 0 }, .color = color };
 
     const idxs = [_]u32{ 0, 1, 2, 0, 2, 3 };
     @memcpy(indices, &idxs);
@@ -114,41 +115,29 @@ pub fn createSphere(allocator: std.mem.Allocator, radius: f32, rings: u32, secto
     const vertices = try allocator.alloc(Vertex, vertex_count);
     const indices = try allocator.alloc(u32, index_count);
 
-    const R = 1.0 / @as(f32, @floatFromInt(rings - 1));
-    const S = 1.0 / @as(f32, @floatFromInt(sectors - 1));
-
     var v: usize = 0;
-
-    for (0..rings) |r| {
-        for (0..sectors) |s| {
-            const y = @sin(-std.math.pi / 2.0 + std.math.pi * @as(f32, @floatFromInt(r)) * R);
-            const x = @cos(2.0 * std.math.pi * @as(f32, @floatFromInt(s)) * S) * @sin(std.math.pi * @as(f32, @floatFromInt(r)) * R);
-            const z = @sin(2.0 * std.math.pi * @as(f32, @floatFromInt(s)) * S) * @sin(std.math.pi * @as(f32, @floatFromInt(r)) * R);
-
-            vertices[v] = .{
-                .pos = .{ x * radius, y * radius, z * radius },
-                .color = color,
-            };
-            v += 1;
-        }
-    }
-
-    v = 0;
     for (0..rings + 1) |r| {
         const phi = std.math.pi * @as(f32, @floatFromInt(r)) / @as(f32, @floatFromInt(rings));
         const y = radius * @cos(phi);
         const r_sin = radius * @sin(phi);
+
+        const ny = @cos(phi);
+        const nr_sin = @sin(phi);
 
         for (0..sectors + 1) |s| {
             const theta = 2.0 * std.math.pi * @as(f32, @floatFromInt(s)) / @as(f32, @floatFromInt(sectors));
             const x = r_sin * @cos(theta);
             const z = r_sin * @sin(theta);
 
+            const nx = nr_sin * @cos(theta);
+            const nz = nr_sin * @sin(theta);
+
             var c = color;
             if ((r + s) % 2 == 0) c = colors.darken(c, 0.9);
 
             vertices[v] = .{
                 .pos = .{ x, y, z },
+                .normal = .{ nx, ny, nz },
                 .color = c,
             };
             v += 1;
@@ -204,22 +193,22 @@ pub fn createCylinder(allocator: std.mem.Allocator, radius: f32, height: f32, se
         const theta = 2.0 * std.math.pi * @as(f32, @floatFromInt(i)) / @as(f32, @floatFromInt(segments));
         const x = radius * @cos(theta);
         const z = radius * @sin(theta);
-        vertices[v] = .{ .pos = .{ x, half_h, z }, .color = color };
+        vertices[v] = .{ .pos = .{ x, half_h, z }, .normal = .{ 0, 1, 0 }, .color = color };
         v += 1;
     }
     for (0..segments + 1) |i| {
         const theta = 2.0 * std.math.pi * @as(f32, @floatFromInt(i)) / @as(f32, @floatFromInt(segments));
         const x = radius * @cos(theta);
         const z = radius * @sin(theta);
-        vertices[v] = .{ .pos = .{ x, -half_h, z }, .color = colors.darken(color, 0.8) };
+        vertices[v] = .{ .pos = .{ x, -half_h, z }, .normal = .{ 0, 1, 0 }, .color = colors.darken(color, 0.8) };
         v += 1;
     }
 
     const top_center_idx: u32 = @intCast(v);
-    vertices[v] = .{ .pos = .{ 0, half_h, 0 }, .color = color };
+    vertices[v] = .{ .pos = .{ 0, half_h, 0 }, .normal = .{ 0, 1, 0 }, .color = color };
     v += 1;
     const bot_center_idx: u32 = @intCast(v);
-    vertices[v] = .{ .pos = .{ 0, -half_h, 0 }, .color = colors.darken(color, 0.8) };
+    vertices[v] = .{ .pos = .{ 0, -half_h, 0 }, .normal = .{ 0, 1, 0 }, .color = colors.darken(color, 0.8) };
     v += 1;
 
     var idx: usize = 0;
@@ -282,16 +271,16 @@ pub fn createCone(allocator: std.mem.Allocator, radius: f32, height: f32, segmen
         const theta = 2.0 * std.math.pi * @as(f32, @floatFromInt(i)) / @as(f32, @floatFromInt(segments));
         const x = radius * @cos(theta);
         const z = radius * @sin(theta);
-        vertices[v] = .{ .pos = .{ x, -half_h, z }, .color = if (i % 2 == 0) color else colors.darken(color, 0.9) };
+        vertices[v] = .{ .pos = .{ x, -half_h, z }, .normal = .{ 0, 1, 0 }, .color = if (i % 2 == 0) color else colors.darken(color, 0.9) };
         v += 1;
     }
 
     const top_idx: u32 = @intCast(v);
-    vertices[v] = .{ .pos = .{ 0, half_h, 0 }, .color = color };
+    vertices[v] = .{ .pos = .{ 0, half_h, 0 }, .normal = .{ 0, 1, 0 }, .color = color };
     v += 1;
 
     const base_idx: u32 = @intCast(v);
-    vertices[v] = .{ .pos = .{ 0, -half_h, 0 }, .color = colors.darken(color, 0.8) };
+    vertices[v] = .{ .pos = .{ 0, -half_h, 0 }, .normal = .{ 0, 1, 0 }, .color = colors.darken(color, 0.8) };
     v += 1;
 
     var idx: usize = 0;
@@ -345,7 +334,7 @@ pub fn createTorus(allocator: std.mem.Allocator, radius: f32, tube_radius: f32, 
             var c = color;
             if ((i + j) % 2 == 0) c = colors.darken(c, 0.85);
 
-            vertices[v] = .{ .pos = .{ x, y, z }, .color = c };
+            vertices[v] = .{ .pos = .{ x, y, z }, .normal = .{ 0, 1, 0 }, .color = c };
             v += 1;
         }
     }
@@ -397,27 +386,27 @@ pub fn createPyramid(allocator: std.mem.Allocator, base_size: f32, height: f32, 
     const b_rb = Vec3{ half_size, -half_h, half_size };
     const b_lb = Vec3{ -half_size, -half_h, half_size };
 
-    vertices[0] = .{ .pos = top, .color = color };
-    vertices[1] = .{ .pos = b_lf, .color = colors.darken(color, 0.9) };
-    vertices[2] = .{ .pos = b_rf, .color = colors.darken(color, 0.9) };
+    vertices[0] = .{ .pos = top, .normal = .{ 0, 1, 0 }, .color = color };
+    vertices[1] = .{ .pos = b_lf, .normal = .{ 0, 1, 0 }, .color = colors.darken(color, 0.9) };
+    vertices[2] = .{ .pos = b_rf, .normal = .{ 0, 1, 0 }, .color = colors.darken(color, 0.9) };
 
-    vertices[3] = .{ .pos = top, .color = colors.darken(color, 0.8) };
-    vertices[4] = .{ .pos = b_rf, .color = colors.darken(color, 0.8) };
-    vertices[5] = .{ .pos = b_rb, .color = colors.darken(color, 0.8) };
+    vertices[3] = .{ .pos = top, .normal = .{ 0, 1, 0 }, .color = colors.darken(color, 0.8) };
+    vertices[4] = .{ .pos = b_rf, .normal = .{ 0, 1, 0 }, .color = colors.darken(color, 0.8) };
+    vertices[5] = .{ .pos = b_rb, .normal = .{ 0, 1, 0 }, .color = colors.darken(color, 0.8) };
 
-    vertices[6] = .{ .pos = top, .color = colors.darken(color, 0.7) };
-    vertices[7] = .{ .pos = b_rb, .color = colors.darken(color, 0.7) };
-    vertices[8] = .{ .pos = b_lb, .color = colors.darken(color, 0.7) };
+    vertices[6] = .{ .pos = top, .normal = .{ 0, 1, 0 }, .color = colors.darken(color, 0.7) };
+    vertices[7] = .{ .pos = b_rb, .normal = .{ 0, 1, 0 }, .color = colors.darken(color, 0.7) };
+    vertices[8] = .{ .pos = b_lb, .normal = .{ 0, 1, 0 }, .color = colors.darken(color, 0.7) };
 
-    vertices[9] = .{ .pos = top, .color = colors.darken(color, 0.6) };
-    vertices[10] = .{ .pos = b_lb, .color = colors.darken(color, 0.6) };
-    vertices[11] = .{ .pos = b_lf, .color = colors.darken(color, 0.6) };
+    vertices[9] = .{ .pos = top, .normal = .{ 0, 1, 0 }, .color = colors.darken(color, 0.6) };
+    vertices[10] = .{ .pos = b_lb, .normal = .{ 0, 1, 0 }, .color = colors.darken(color, 0.6) };
+    vertices[11] = .{ .pos = b_lf, .normal = .{ 0, 1, 0 }, .color = colors.darken(color, 0.6) };
 
     const base_color = colors.darken(color, 0.5);
-    vertices[12] = .{ .pos = b_lf, .color = base_color };
-    vertices[13] = .{ .pos = b_rf, .color = base_color };
-    vertices[14] = .{ .pos = b_rb, .color = base_color };
-    vertices[15] = .{ .pos = b_lb, .color = base_color };
+    vertices[12] = .{ .pos = b_lf, .normal = .{ 0, 1, 0 }, .color = base_color };
+    vertices[13] = .{ .pos = b_rf, .normal = .{ 0, 1, 0 }, .color = base_color };
+    vertices[14] = .{ .pos = b_rb, .normal = .{ 0, 1, 0 }, .color = base_color };
+    vertices[15] = .{ .pos = b_lb, .normal = .{ 0, 1, 0 }, .color = base_color };
 
     const idxs = [_]u32{
         0,  1,  2,
@@ -476,7 +465,7 @@ pub const ObjModel = struct {
         errdefer allocator.free(vertices);
 
         for (self.positions.items, 0..) |pos, i| {
-            vertices[i] = .{ .pos = pos, .color = color };
+            vertices[i] = .{ .pos = pos, .normal = .{ 0, 1, 0 }, .color = color };
         }
 
         const num_indices = self.faces.items.len * 3;
