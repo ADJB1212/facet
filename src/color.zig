@@ -12,7 +12,7 @@ pub const CYAN = 0xFF00FFFF;
 pub const MAGENTA = 0xFFFF00FF;
 pub const GRAY = 0xFF808080;
 pub const ORANGE = 0xFFFFA500;
-pub const PURLE = 0xFF800080;
+pub const PURPLE = 0xFF800080;
 
 pub inline fn red(c: Color) u8 {
     return @intCast(c & 0xFF);

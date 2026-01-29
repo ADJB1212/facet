@@ -17,15 +17,15 @@ var mesh_torus: renderer.mesh.Mesh = undefined;
 var mesh_pyramid: renderer.mesh.Mesh = undefined;
 var mesh_teapot: renderer.mesh.Mesh = undefined;
 
-fn getRandomColor(rand: std.Random) Color {
+inline fn getRandomColor(rand: std.Random) Color {
     return @intCast(rand.int(u32) | 0xFF000000);
 }
 
-fn getRandomCoordinate(rand: std.Random, max: usize) i32 {
+inline fn getRandomCoordinate(rand: std.Random, max: usize) i32 {
     return @intCast(rand.intRangeAtMost(usize, 0, max));
 }
 
-fn getRandomCoordinateF32(rand: std.Random, max: f32) f32 {
+inline fn getRandomCoordinateF32(rand: std.Random, max: f32) f32 {
     return rand.float(f32) * max;
 }
 

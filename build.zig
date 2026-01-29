@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) void {
 
     const mac_module = b.addSystemCommand(&.{
         "clang",
-        "-O2",
+        "-O3",
         "-c",
         "src/platform/macOS/App.m",
         "-o",
