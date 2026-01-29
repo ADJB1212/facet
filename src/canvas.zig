@@ -347,7 +347,7 @@ pub fn drawTriangle3D(c: *Canvas, v0: math.Vec3, v1: math.Vec3, v2: math.Vec3, c
     const max_yi = @as(i32, @intFromFloat(max_y));
 
     const area = (v1[0] - v0[0]) * (v2[1] - v0[1]) - (v1[1] - v0[1]) * (v2[0] - v0[0]);
-    if (@abs(area) < 1e-6) return;
+    if (area <= 0) return;
     const inv_area = 1.0 / area;
 
     const w0_dx = (v1[1] - v2[1]) * inv_area;

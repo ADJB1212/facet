@@ -15,6 +15,7 @@ var mesh_cylinder: renderer.mesh.Mesh = undefined;
 var mesh_cone: renderer.mesh.Mesh = undefined;
 var mesh_torus: renderer.mesh.Mesh = undefined;
 var mesh_pyramid: renderer.mesh.Mesh = undefined;
+var mesh_teapot: renderer.mesh.Mesh = undefined;
 
 fn getRandomColor(rand: std.Random) Color {
     return @intCast(rand.int(u32) | 0xFF000000);
@@ -193,6 +194,11 @@ fn benchMeshPyramid(canvas: *renderer.Canvas, rand: std.Random) void {
     renderer.drawMesh(canvas, mesh_pyramid, mvp);
 }
 
+fn benchMeshTeapot(canvas: *renderer.Canvas, rand: std.Random) void {
+    const mvp = getRandomMVP(rand);
+    renderer.drawMesh(canvas, mesh_teapot, mvp);
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -231,6 +237,11 @@ pub fn main() !void {
     mesh_pyramid = try renderer.mesh.createPyramid(allocator, 1.0, 1.0, renderer.colors.BLUE);
     defer mesh_pyramid.deinit();
 
+    var teapot_model = try renderer.mesh.loadObjFromFile(allocator, "testing/teapot.obj");
+    defer teapot_model.deinit();
+    mesh_teapot = try teapot_model.toMesh(allocator, renderer.colors.WHITE);
+    defer mesh_teapot.deinit();
+
     const benchmarks = [_]Benchmark{
         .{ .name = "Fill Canvas", .func = benchFill, .iterations = 1000 },
         .{ .name = "Set Pixel", .func = benchPixels, .iterations = NUM_OPERATIONS },
@@ -250,6 +261,7 @@ pub fn main() !void {
         .{ .name = "Mesh: Cone", .func = benchMeshCone, .iterations = 1000 },
         .{ .name = "Mesh: Torus", .func = benchMeshTorus, .iterations = 1000 },
         .{ .name = "Mesh: Pyramid", .func = benchMeshPyramid, .iterations = 1000 },
+        .{ .name = "Mesh: Teapot", .func = benchMeshTeapot, .iterations = 1000 },
     };
 
     // The 7 print statements below were written by Gemini 3 Pro (for more readable output)
