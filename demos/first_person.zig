@@ -3,6 +3,7 @@ const render = @import("renderer");
 const window = @import("window");
 const input = @import("input");
 const math = @import("math");
+const lighting = render.lighting;
 const colors = render.colors;
 
 const Canvas = render.Canvas;
@@ -280,7 +281,7 @@ fn drawHud(canvas: *Canvas, state: *const State, center_y: f32) void {
     }
 }
 
-fn raycastColumn(canvas: *Canvas, state: *const State, x: i32, center_y: f32) void {
+fn raycastColumn(canvas: *Canvas, state: *const State, x: i32, center_y: f32, lights: []const lighting.Light, material: lighting.Material, ambient: math.Vec3) void {
     const x_f = @as(f32, @floatFromInt(x));
     const w_f = @as(f32, @floatFromInt(SCREEN_WIDTH));
     const xcam = (2.0 * (x_f / w_f)) - 1.0;
@@ -365,8 +366,16 @@ fn raycastColumn(canvas: *Canvas, state: *const State, x: i32, center_y: f32) vo
     y0 = @max(0, y0);
     y1 = @min(@as(i32, @intCast(SCREEN_HEIGHT)), y1);
 
-    var color = wallColor(val);
-    if (side == 1) color = render.colors.darken(color, 0.7);
+    const base_color = wallColor(val);
+
+    const hit_pos_2d = state.pos + dir * @as(Vec2, @splat(dperp));
+    var normal: math.Vec3 = undefined;
+    if (side == 0) {
+        normal = if (dir[0] > 0) .{ -1, 0, 0 } else .{ 1, 0, 0 };
+    } else {
+        normal = if (dir[1] > 0) .{ 0, 0, -1 } else .{ 0, 0, 1 };
+    }
+    const view_pos = math.Vec3{ state.pos[0], 0.5, state.pos[1] };
 
     var wy: i32 = y0;
     while (wy < y1) : (wy += 1) {
@@ -374,11 +383,19 @@ fn raycastColumn(canvas: *Canvas, state: *const State, x: i32, center_y: f32) vo
         tex_pos += step_tex;
 
         const pattern = (tex_x ^ tex_y);
-        var col = color;
+        var col = base_color;
         if ((pattern & 16) != 0) {
             col = render.colors.darken(col, 0.7);
         }
-        render.setPixel(canvas, x, wy, col);
+
+        const t = (@as(f32, @floatFromInt(wy)) - draw_start) / line_height;
+        const world_y = 1.0 - t;
+
+        const world_pos = math.Vec3{ hit_pos_2d[0], world_y, hit_pos_2d[1] };
+
+        const lit_color = lighting.calculateLighting(world_pos, normal, view_pos, col, material, lights, ambient);
+
+        render.setPixel(canvas, x, wy, lit_color);
     }
 }
 
@@ -387,9 +404,28 @@ fn render_frame(canvas: *Canvas, state: *const State) void {
     const pitch_total = state.pitch + state.recoil;
     const center_y = (@as(f32, @floatFromInt(SCREEN_HEIGHT)) / 2.0) + @as(f32, @floatFromInt(bob_offset)) + (pitch_total * PITCH_PIXELS);
 
+    const flashlight_pos = math.Vec3{ state.pos[0], 0.5, state.pos[1] };
+    const lights = [_]lighting.Light{
+        .{
+            .type = .Point,
+            .position = flashlight_pos,
+            .color = .{ 1, 1, 1 },
+            .intensity = 1.0,
+        },
+        .{
+            .type = .Point,
+            .position = .{ 8.5, 0.5, 8.5 },
+            .color = .{ 1, 0.5, 0 },
+            .intensity = 2.0,
+        },
+    };
+
+    const material = lighting.DEFAULT_MATERIAL;
+    const ambient = math.Vec3{ 0.1, 0.1, 0.1 };
+
     var x: i32 = 0;
     while (x < SCREEN_WIDTH) : (x += 1) {
-        raycastColumn(canvas, state, x, center_y);
+        raycastColumn(canvas, state, x, center_y, &lights, material, ambient);
     }
 
     drawMinimap(canvas, state);
