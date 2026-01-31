@@ -1,12 +1,29 @@
 const std = @import("std");
 const renderer = @import("renderer");
 const math = @import("math");
+const lighting = renderer.lighting;
 
 const WIDTH = 1920;
 const HEIGHT = 1080;
 const NUM_OPERATIONS = 100000;
 
 const Color = renderer.colors.Color;
+
+const test_lights = [_]lighting.Light{
+    .{
+        .type = .Directional,
+        .position = math.Vec3{ 1.0, -1.0, -1.0 },
+        .color = math.Vec3{ 1.0, 1.0, 1.0 },
+        .intensity = 1.0,
+    },
+    .{
+        .type = .Point,
+        .position = math.Vec3{ 2.0, 2.0, -5.0 },
+        .color = math.Vec3{ 1.0, 0.8, 0.6 },
+        .intensity = 1.5,
+    },
+};
+const ambient_light = math.Vec3{ 0.1, 0.1, 0.15 };
 
 var mesh_cube: renderer.mesh.Mesh = undefined;
 var mesh_plane: renderer.mesh.Mesh = undefined;
@@ -140,7 +157,15 @@ fn benchText(canvas: *renderer.Canvas, rand: std.Random) void {
     renderer.drawText(canvas, "Benchmark", x, y, size, color, .left);
 }
 
-fn getRandomMVP(rand: std.Random) math.Mat4 {
+const RandomTransforms = struct {
+    model: math.Mat4,
+    view: math.Mat4,
+    projection: math.Mat4,
+    mvp: math.Mat4,
+    view_pos: math.Vec3,
+};
+
+fn getRandomTransforms(rand: std.Random) RandomTransforms {
     const aspect = @as(f32, @floatFromInt(WIDTH)) / @as(f32, @floatFromInt(HEIGHT));
     const projection = math.Mat4.perspective(std.math.degreesToRadians(45.0), aspect, 0.1, 100.0);
 
@@ -149,6 +174,7 @@ fn getRandomMVP(rand: std.Random) math.Mat4 {
     const z = -10.0 - getRandomCoordinateF32(rand, 10.0);
 
     const view = math.Mat4.translate(.{ x, y, z });
+    const view_pos = math.Vec3{ -x, -y, -z };
 
     const rx = getRandomCoordinateF32(rand, std.math.pi * 2.0);
     const ry = getRandomCoordinateF32(rand, std.math.pi * 2.0);
@@ -156,7 +182,19 @@ fn getRandomMVP(rand: std.Random) math.Mat4 {
     const rotation = math.Mat4.mul(math.Mat4.rotateX(rx), math.Mat4.rotateY(ry));
     const model = rotation;
 
-    return math.Mat4.mul(projection, math.Mat4.mul(view, model));
+    const mvp = math.Mat4.mul(projection, math.Mat4.mul(view, model));
+
+    return .{
+        .model = model,
+        .view = view,
+        .projection = projection,
+        .mvp = mvp,
+        .view_pos = view_pos,
+    };
+}
+
+fn getRandomMVP(rand: std.Random) math.Mat4 {
+    return getRandomTransforms(rand).mvp;
 }
 
 fn benchMeshCube(canvas: *renderer.Canvas, rand: std.Random) void {
@@ -197,6 +235,26 @@ fn benchMeshPyramid(canvas: *renderer.Canvas, rand: std.Random) void {
 fn benchMeshTeapot(canvas: *renderer.Canvas, rand: std.Random) void {
     const mvp = getRandomMVP(rand);
     renderer.drawMesh(canvas, mesh_teapot, mvp);
+}
+
+fn benchMeshLitCube(canvas: *renderer.Canvas, rand: std.Random) void {
+    const t = getRandomTransforms(rand);
+    renderer.drawMeshLit(canvas, mesh_cube, t.model, t.view, t.projection, &test_lights, lighting.DEFAULT_MATERIAL, ambient_light, t.view_pos);
+}
+
+fn benchMeshLitSphere(canvas: *renderer.Canvas, rand: std.Random) void {
+    const t = getRandomTransforms(rand);
+    renderer.drawMeshLit(canvas, mesh_sphere, t.model, t.view, t.projection, &test_lights, lighting.DEFAULT_MATERIAL, ambient_light, t.view_pos);
+}
+
+fn benchMeshLitTorus(canvas: *renderer.Canvas, rand: std.Random) void {
+    const t = getRandomTransforms(rand);
+    renderer.drawMeshLit(canvas, mesh_torus, t.model, t.view, t.projection, &test_lights, lighting.DEFAULT_MATERIAL, ambient_light, t.view_pos);
+}
+
+fn benchMeshLitTeapot(canvas: *renderer.Canvas, rand: std.Random) void {
+    const t = getRandomTransforms(rand);
+    renderer.drawMeshLit(canvas, mesh_teapot, t.model, t.view, t.projection, &test_lights, lighting.DEFAULT_MATERIAL, ambient_light, t.view_pos);
 }
 
 pub fn main() !void {
@@ -262,6 +320,10 @@ pub fn main() !void {
         .{ .name = "Mesh: Torus", .func = benchMeshTorus, .iterations = 1000 },
         .{ .name = "Mesh: Pyramid", .func = benchMeshPyramid, .iterations = 1000 },
         .{ .name = "Mesh: Teapot", .func = benchMeshTeapot, .iterations = 1000 },
+        .{ .name = "Lit Mesh: Cube", .func = benchMeshLitCube, .iterations = 1000 },
+        .{ .name = "Lit Mesh: Sphere", .func = benchMeshLitSphere, .iterations = 1000 },
+        .{ .name = "Lit Mesh: Torus", .func = benchMeshLitTorus, .iterations = 1000 },
+        .{ .name = "Lit Mesh: Teapot", .func = benchMeshLitTeapot, .iterations = 1000 },
     };
 
     // The 7 print statements below were written by Gemini 3 Pro (for more readable output)
