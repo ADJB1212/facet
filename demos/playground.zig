@@ -8,56 +8,58 @@ const Vec3 = math.Vec3;
 const Vec4 = math.Vec4;
 const Mat4 = math.Mat4;
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(main_init: std.process.Init) !void {
+    const arena: std.mem.Allocator = main_init.arena.allocator();
+
+    var threaded: std.Io.Threaded = .init(arena, .{ .environ = main_init.minimal.environ });
+    defer threaded.deinit();
+    const io = threaded.io();
 
     const width = 900;
     const height = 600;
 
-    try render.init(allocator, width, height);
+    try render.init(arena, width, height);
     defer render.deinit();
 
     const canvas = render.getCanvas();
     render.fillCanvas(canvas, render.colors.BLACK);
 
-    var cube = try render.mesh.createCube(allocator, 1.0);
+    var cube = try render.mesh.createCube(arena, 1.0);
     defer cube.deinit();
 
-    var plane = try render.mesh.createPlane(allocator, 10.0, 10.0, render.colors.darken(render.colors.GREEN, 0.5));
+    var plane = try render.mesh.createPlane(arena, 10.0, 10.0, render.colors.darken(render.colors.GREEN, 0.5));
     defer plane.deinit();
 
-    var sphere = try render.mesh.createSphere(allocator, 0.8, 16, 16, render.colors.RED);
+    var sphere = try render.mesh.createSphere(arena, 0.8, 16, 16, render.colors.RED);
     defer sphere.deinit();
 
-    var cylinder = try render.mesh.createCylinder(allocator, 0.5, 1.5, 16, render.colors.MAGENTA);
+    var cylinder = try render.mesh.createCylinder(arena, 0.5, 1.5, 16, render.colors.MAGENTA);
     defer cylinder.deinit();
 
-    var cone = try render.mesh.createCone(allocator, 0.6, 1.5, 16, render.colors.YELLOW);
+    var cone = try render.mesh.createCone(arena, 0.6, 1.5, 16, render.colors.YELLOW);
     defer cone.deinit();
 
-    var torus = try render.mesh.createTorus(allocator, 0.6, 0.2, 16, 32, render.colors.CYAN);
+    var torus = try render.mesh.createTorus(arena, 0.6, 0.2, 16, 32, render.colors.CYAN);
     defer torus.deinit();
 
-    var fps: render.FpsManager = .{};
+    var fps: render.FpsManager = try .init(io);
     fps.setTargetFPS(60);
 
     window.init();
 
     var quit: bool = false;
     var circle_x: i32 = 750;
-    var timer = try std.time.Timer.start();
-    var last_time: u64 = 0;
+    var last_time = std.Io.Clock.now(.real, io);
     var angle: f32 = 0.0;
     while (!quit) {
         quit = window.pollEvents();
         if (input.isKeyDown(.Escape)) quit = true;
 
-        const now = timer.read();
-        const dt_ns = now - last_time;
+        const now = std.Io.Clock.now(.real, io);
+        const dt_ns = now.toNanoseconds() - last_time.toNanoseconds();
         last_time = now;
-        const dt = @as(f32, @floatFromInt(dt_ns)) / @as(f32, @floatFromInt(std.time.ns_per_s));
+
+        const dt = @as(f32, @floatFromInt(dt_ns)) / 1_000_000_000.0;
 
         angle += dt * 1.0;
 
@@ -118,8 +120,9 @@ pub fn main() !void {
         render.drawCircle(canvas, circle_x, 150, 50, 2, render.colors.MAGENTA);
         render.drawBezier(canvas, 130, 140, 300, 280, 134, 500, 3, render.colors.WHITE);
         render.drawText(canvas, "Andrew 123456789 (Facet)!", width / 2, height - 100, 4, render.colors.WHITE, .center);
-        fps.drawFPS(canvas, width - 90, 15, render.colors.WHITE);
+        try fps.drawFPS(canvas, width - 90, 15, render.colors.WHITE);
         window.present();
-        fps.waitForNextFrame();
+        try fps.drawFPS(canvas, width - 80, 10, render.colors.WHITE);
+        try fps.waitForNextFrame();
     }
 }

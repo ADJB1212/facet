@@ -444,7 +444,7 @@ fn rotate(state: *State, rot: f32) void {
     state.plane[1] = p[0] * sr + p[1] * cr;
 }
 
-fn tryMoveAxis(state: *State, move_step: Vec2, axis: usize) void {
+inline fn tryMoveAxis(state: *State, move_step: Vec2, axis: usize) void {
     const next = state.pos[axis] + move_step[axis];
 
     const map_x = @as(i32, @intFromFloat(if (axis == 0) next else state.pos[0]));
@@ -520,24 +520,25 @@ fn update(state: *State, dt: f32, in: UserInput) void {
     }
 }
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(main_init: std.process.Init) !void {
+    const arena: std.mem.Allocator = main_init.arena.allocator();
 
-    try render.init(allocator, SCREEN_WIDTH, SCREEN_HEIGHT);
+    var threaded: std.Io.Threaded = .init(arena, .{ .environ = main_init.minimal.environ });
+    defer threaded.deinit();
+    const io = threaded.io();
+
+    try render.init(arena, SCREEN_WIDTH, SCREEN_HEIGHT);
     defer render.deinit();
 
     const canvas = render.getCanvas();
     var state = init();
     window.init();
 
-    var fps: render.FpsManager = .{};
+    var fps: render.FpsManager = try .init(io);
     fps.setTargetFPS(120.0);
 
     var quit = false;
-    var timer = try std.time.Timer.start();
-    var last_time: u64 = 0;
+    var last_time = std.Io.Clock.now(.real, io);
     var last_mouse_pos = input.getMousePosition();
     var prev_mouse_down = false;
 
@@ -549,10 +550,11 @@ pub fn main() !void {
         const mouse_dy = mouse_pos.y - last_mouse_pos.y;
         last_mouse_pos = mouse_pos;
 
-        const now = timer.read();
-        const dt_ns = now - last_time;
+        const now = std.Io.Clock.now(.real, io);
+        const dt_ns = now.toNanoseconds() - last_time.toNanoseconds();
         last_time = now;
-        const dt = @as(f32, @floatFromInt(dt_ns)) / @as(f32, @floatFromInt(std.time.ns_per_s));
+
+        const dt = @as(f32, @floatFromInt(dt_ns)) / 1_000_000_000.0;
         const clamped_dt = if (dt > MAX_DT) MAX_DT else dt;
 
         const mouse_down = input.isMouseDown(.Left);
@@ -574,7 +576,7 @@ pub fn main() !void {
         render_frame(canvas, &state);
         window.present();
 
-        fps.drawFPS(canvas, SCREEN_WIDTH - 70, 5, render.colors.WHITE);
-        fps.waitForNextFrame();
+        try fps.drawFPS(canvas, SCREEN_WIDTH - 70, 5, render.colors.WHITE);
+        try fps.waitForNextFrame();
     }
 }

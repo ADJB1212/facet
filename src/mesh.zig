@@ -426,10 +426,10 @@ pub fn createPyramid(allocator: std.mem.Allocator, base_size: f32, height: f32, 
 }
 
 pub const ObjModel = struct {
-    positions: std.ArrayListUnmanaged(Vec3),
-    tex_coords: std.ArrayListUnmanaged(Vec2),
-    normals: std.ArrayListUnmanaged(Vec3),
-    faces: std.ArrayListUnmanaged(Face),
+    positions: std.ArrayListUnmanaged(Vec3) = .empty,
+    tex_coords: std.ArrayListUnmanaged(Vec2) = .empty,
+    normals: std.ArrayListUnmanaged(Vec3) = .empty,
+    faces: std.ArrayListUnmanaged(Face) = .empty,
     allocator: std.mem.Allocator,
 
     pub const Face = struct {
@@ -444,10 +444,10 @@ pub const ObjModel = struct {
 
     pub fn init(allocator: std.mem.Allocator) ObjModel {
         return .{
-            .positions = .{},
-            .tex_coords = .{},
-            .normals = .{},
-            .faces = .{},
+            .positions = .empty,
+            .tex_coords = .empty,
+            .normals = .empty,
+            .faces = .empty,
             .allocator = allocator,
         };
     }
@@ -496,7 +496,7 @@ fn parseObj(allocator: std.mem.Allocator, file_content: []const u8) !ObjModel {
 
     var lines = std.mem.tokenizeAny(u8, file_content, "\n\r");
     while (lines.next()) |line| {
-        if (std.mem.startsWith(u8, std.mem.trimLeft(u8, line, " "), "#")) continue;
+        if (std.mem.startsWith(u8, std.mem.trimStart(u8, line, " "), "#")) continue;
 
         var tokens = std.mem.tokenizeAny(u8, line, " \t");
         const cmd = tokens.next() orelse continue;
@@ -516,7 +516,7 @@ fn parseObj(allocator: std.mem.Allocator, file_content: []const u8) !ObjModel {
             const z = try parseFloat(tokens.next());
             try model.normals.append(allocator, .{ x, y, z });
         } else if (std.mem.eql(u8, cmd, "f")) {
-            var face_indices = std.ArrayListUnmanaged(ObjModel.VertexIndex){};
+            var face_indices = std.ArrayListUnmanaged(ObjModel.VertexIndex).empty;
             defer face_indices.deinit(allocator);
 
             while (tokens.next()) |token| {
@@ -538,11 +538,8 @@ fn parseObj(allocator: std.mem.Allocator, file_content: []const u8) !ObjModel {
     return model;
 }
 
-pub fn loadObjFromFile(allocator: std.mem.Allocator, path: []const u8) !ObjModel {
-    const file = try std.fs.cwd().openFile(path, .{});
-    defer file.close();
-
-    const content = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+pub fn loadObjFromFile(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !ObjModel {
+    const content = try std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .unlimited);
     defer allocator.free(content);
 
     return parseObj(allocator, content);

@@ -257,16 +257,15 @@ fn benchMeshLitTeapot(canvas: *renderer.Canvas, rand: std.Random) void {
     renderer.drawMeshLit(canvas, mesh_teapot, t.model, t.view, t.projection, &test_lights, lighting.DEFAULT_MATERIAL, ambient_light, t.view_pos);
 }
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const arena: std.mem.Allocator = init.arena.allocator();
 
+    const io = init.io;
     var stdout_buffer: [1024]u8 = undefined;
-    var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
-    const stdout = &stdout_writer.interface;
+    var stdout_file_writer: std.Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
+    const stdout = &stdout_file_writer.interface;
 
-    try renderer.init(allocator, WIDTH, HEIGHT);
+    try renderer.init(arena, WIDTH, HEIGHT);
     defer renderer.deinit();
 
     const canvas = renderer.getCanvas();
@@ -274,30 +273,30 @@ pub fn main() !void {
     var prng = std.Random.DefaultPrng.init(0);
     const rand = prng.random();
 
-    mesh_cube = try renderer.mesh.createCube(allocator, 1.0);
+    mesh_cube = try renderer.mesh.createCube(arena, 1.0);
     defer mesh_cube.deinit();
 
-    mesh_plane = try renderer.mesh.createPlane(allocator, 2.0, 2.0, renderer.colors.GREEN);
+    mesh_plane = try renderer.mesh.createPlane(arena, 2.0, 2.0, renderer.colors.GREEN);
     defer mesh_plane.deinit();
 
-    mesh_sphere = try renderer.mesh.createSphere(allocator, 1.0, 16, 16, renderer.colors.RED);
+    mesh_sphere = try renderer.mesh.createSphere(arena, 1.0, 16, 16, renderer.colors.RED);
     defer mesh_sphere.deinit();
 
-    mesh_cylinder = try renderer.mesh.createCylinder(allocator, 0.5, 1.0, 16, renderer.colors.MAGENTA);
+    mesh_cylinder = try renderer.mesh.createCylinder(arena, 0.5, 1.0, 16, renderer.colors.MAGENTA);
     defer mesh_cylinder.deinit();
 
-    mesh_cone = try renderer.mesh.createCone(allocator, 0.5, 1.0, 16, renderer.colors.YELLOW);
+    mesh_cone = try renderer.mesh.createCone(arena, 0.5, 1.0, 16, renderer.colors.YELLOW);
     defer mesh_cone.deinit();
 
-    mesh_torus = try renderer.mesh.createTorus(allocator, 0.5, 0.2, 16, 16, renderer.colors.CYAN);
+    mesh_torus = try renderer.mesh.createTorus(arena, 0.5, 0.2, 16, 16, renderer.colors.CYAN);
     defer mesh_torus.deinit();
 
-    mesh_pyramid = try renderer.mesh.createPyramid(allocator, 1.0, 1.0, renderer.colors.BLUE);
+    mesh_pyramid = try renderer.mesh.createPyramid(arena, 1.0, 1.0, renderer.colors.BLUE);
     defer mesh_pyramid.deinit();
 
-    var teapot_model = try renderer.mesh.loadObjFromFile(allocator, "testing/teapot.obj");
+    var teapot_model = try renderer.mesh.loadObjFromFile(arena, io, "testing/teapot.obj");
     defer teapot_model.deinit();
-    mesh_teapot = try teapot_model.toMesh(allocator, renderer.colors.WHITE);
+    mesh_teapot = try teapot_model.toMesh(arena, renderer.colors.WHITE);
     defer mesh_teapot.deinit();
 
     const benchmarks = [_]Benchmark{
@@ -334,20 +333,28 @@ pub fn main() !void {
     try stdout.print("----------------------------------------------------------------\n", .{});
     try stdout.flush();
 
-    var timer = try std.time.Timer.start();
-
     for (benchmarks) |bench| {
-        timer.reset();
+        const start = std.Io.Clock.now(.real, io);
+
         for (0..bench.iterations) |_| {
             bench.func(canvas, rand);
         }
-        const elapsed_ns = timer.read();
-        const elapsed_s = @as(f64, @floatFromInt(elapsed_ns)) / std.time.ns_per_s;
+
+        const end = std.Io.Clock.now(.real, io);
+
+        const elapsed_ns = end.toNanoseconds() - start.toNanoseconds();
+        const elapsed_s = @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000_000.0;
+
         const ops_per_sec = @as(f64, @floatFromInt(bench.iterations)) / elapsed_s;
 
-        try stdout.print("{s:<20} | {d:<12} | {d:>.4}s      | {d:>.2}\n", .{ bench.name, bench.iterations, elapsed_s, ops_per_sec });
+        try stdout.print(
+            "{s:<20} | {d:<12} | {d:>.4}s      | {d:>.2}\n",
+            .{ bench.name, bench.iterations, elapsed_s, ops_per_sec },
+        );
+
         try stdout.flush();
     }
+
     try stdout.print("----------------------------------------------------------------\n", .{});
     try stdout.flush();
 }

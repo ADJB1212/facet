@@ -4,7 +4,6 @@ const window = @import("window");
 const input = @import("input");
 
 const math = std.math;
-const rand = std.crypto.random;
 
 const Vector2 = @Vector(2, f32);
 
@@ -151,11 +150,11 @@ const State = struct {
     now: f32 = 0,
     delta: f32 = 0,
     player: Player,
-    asteroids: std.ArrayListUnmanaged(Asteroid),
-    asteroids_queue: std.ArrayListUnmanaged(Asteroid),
-    particles: std.ArrayListUnmanaged(Particle),
-    projectiles: std.ArrayListUnmanaged(Projectile),
-    aliens: std.ArrayListUnmanaged(Alien),
+    asteroids: std.ArrayListUnmanaged(Asteroid) = .empty,
+    asteroids_queue: std.ArrayListUnmanaged(Asteroid) = .empty,
+    particles: std.ArrayListUnmanaged(Particle) = .empty,
+    projectiles: std.ArrayListUnmanaged(Projectile) = .empty,
+    aliens: std.ArrayListUnmanaged(Alien) = .empty,
     rand: std.Random,
     lives: usize = 0,
     last_score: usize = 0,
@@ -611,64 +610,71 @@ fn resetStage() !void {
     };
 }
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    defer _ = gpa.deinit();
+pub fn main(main_init: std.process.Init) !void {
+    const arena: std.mem.Allocator = main_init.arena.allocator();
 
-    try render.init(allocator, @as(usize, @intFromFloat(SIZE[0])), @as(usize, @intFromFloat(SIZE[1])));
+    var threaded: std.Io.Threaded = .init(arena, .{ .environ = main_init.minimal.environ });
+    defer threaded.deinit();
+    const io = threaded.io();
+
+    const clock = std.Io.Clock.now(.real, io);
+    const seed: u64 = @as(u64, @intCast(clock.toMilliseconds()));
+
+    var prng = std.Random.DefaultPrng.init(seed);
+
+    const rand = prng.random();
+
+    try render.init(arena, @as(usize, @intFromFloat(SIZE[0])), @as(usize, @intFromFloat(SIZE[1])));
     defer render.deinit();
 
     canvas = render.getCanvas();
 
     window.init();
-    var fps: render.FpsManager = .{};
-    fps.setTargetFPS(120.0);
+    var fps: render.FpsManager = try .init(io);
+    fps.setTargetFPS(60);
 
     var quit = false;
-    var timer = try std.time.Timer.start();
-    var last_time: u64 = 0;
+    var last_time = std.Io.Clock.now(.real, io);
 
     state = .{
         .player = .{ .pos = Vec2.scale(SIZE, 0.5), .vel = Vec2.init(0, 0), .rot = 0.0 },
-        .asteroids = .{},
-        .asteroids_queue = .{},
-        .particles = .{},
-        .projectiles = .{},
-        .aliens = .{},
+        .asteroids = .empty,
+        .asteroids_queue = .empty,
+        .particles = .empty,
+        .projectiles = .empty,
+        .aliens = .empty,
         .rand = rand,
     };
-    defer state.asteroids.deinit(allocator);
-    defer state.asteroids_queue.deinit(allocator);
-    defer state.particles.deinit(allocator);
-    defer state.projectiles.deinit(allocator);
-    defer state.aliens.deinit(allocator);
+    defer state.asteroids.deinit(arena);
+    defer state.asteroids_queue.deinit(arena);
+    defer state.particles.deinit(arena);
+    defer state.projectiles.deinit(arena);
+    defer state.aliens.deinit(arena);
 
-    try resetGame(allocator);
+    try resetGame(arena);
 
     while (!quit) {
         quit = window.pollEvents();
 
         if (input.isKeyDown(.Escape)) std.process.exit(0);
 
-        const now = timer.read();
-        const dt_ns = now - last_time;
+        const now = std.Io.Clock.now(.real, io);
+        const dt_ns = now.toNanoseconds() - last_time.toNanoseconds();
         last_time = now;
-        const dt = @as(f32, @floatFromInt(dt_ns)) / @as(f32, @floatFromInt(std.time.ns_per_s));
+        const dt = @as(f32, @floatFromInt(dt_ns)) / 1_000_000_000.0;
 
         const clamped_dt = if (dt > 0.1) 0.1 else dt;
         state.delta = clamped_dt;
         state.now += state.delta;
 
-        try update(allocator);
+        try update(arena);
 
         render.fillCanvas(canvas, render.colors.BLACK);
 
-        try render_frame(allocator);
-
+        try render_frame(arena);
+        try fps.drawFPS(canvas, @as(i32, @intFromFloat(SIZE[0])) - 80, 0, render.colors.WHITE);
         window.present();
 
-        fps.drawFPS(canvas, @as(i32, @intFromFloat(SIZE[0])) - 80, 0, render.colors.WHITE);
-        fps.waitForNextFrame();
+        try fps.waitForNextFrame();
     }
 }
